@@ -1,6 +1,8 @@
 package parser
 
-import "evie/lexer"
+import (
+	"evie/lexer"
+)
 
 type TokenIterator struct {
 	Items []lexer.Token
@@ -8,12 +10,19 @@ type TokenIterator struct {
 }
 
 func (t TokenIterator) Get() lexer.Token {
+	if t.IsOutOfBounds() {
+		return lexer.Token{Kind: "eof"}
+	}
 	char := t.Items[t.Index]
 	return char
 }
 func (t *TokenIterator) Eat() lexer.Token {
 	char := t.Items[t.Index]
 	t.Index++
+	// fmt.Println("char eaten " + char.Lexeme)
+	// if char.Lexeme == "}" {
+	// 	panic(2)
+	// }
 	return char
 }
 

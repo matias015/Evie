@@ -14,11 +14,13 @@ import (
 )
 
 type Evaluator struct {
-	Nodes []parser.Stmt
+	Nodes     []parser.Stmt
+	CallStack []string
 }
 
 // Takes an AST and evaluates it, Node by node
-func (e Evaluator) Evaluate(env *environment.Environment) *environment.Environment {
+func (e *Evaluator) Evaluate(env *environment.Environment) *environment.Environment {
+
 	for _, node := range e.Nodes {
 		ret := e.EvaluateStmt(node, env)
 
@@ -33,8 +35,7 @@ func (e Evaluator) Evaluate(env *environment.Environment) *environment.Environme
 }
 
 // Evaluate a single Statement node
-func (e Evaluator) EvaluateStmt(node parser.Stmt, env *environment.Environment) values.RuntimeValue {
-
+func (e *Evaluator) EvaluateStmt(node parser.Stmt, env *environment.Environment) values.RuntimeValue {
 	switch n := node.(type) {
 	case parser.VarDeclarationNode:
 		return e.EvaluateVarDeclaration(node.(parser.VarDeclarationNode), env)
@@ -103,7 +104,7 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 
 		for _, module := range importedByModule {
 			if module == env.ModuleName {
-				return Stop("Circular import at line " + strconv.Itoa(line) + " with module: " + node.Path)
+				return e.Panic("Circular import with module: "+node.Path, line, env)
 			}
 		}
 
@@ -121,14 +122,14 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 		// Create a new global environtment for load the module to avoid name conflicts
 		parentEnv := environment.NewEnvironment(nil)
 		native.SetupEnvironment(parentEnv)
+		parentEnv.ModuleName = node.Path
 
 		// Create new environment for the module with the parent environment
 		envForModule := environment.NewEnvironment(parentEnv)
-		envForModule.ModuleName = node.Path
 		envForModule.ImportMap = env.ImportMap
 
-		importEnv := Evaluator{Nodes: ast}.Evaluate(envForModule)
-
+		eval := Evaluator{Nodes: ast}
+		importEnv := eval.Evaluate(envForModule)
 		// Get the created environment after evaluate the module
 		// Get all the variables loaded and load into the actual environment
 		// using a namespace
@@ -344,6 +345,7 @@ func (e Evaluator) EvaluateFunctionDeclarationStmt(node parser.FunctionDeclarati
 	fn.Body = node.Body
 	fn.Parameters = node.Parameters
 	fn.Struct = ""
+	fn.Environment = env
 
 	env.DeclareVar(node.Name, fn)
 
@@ -423,7 +425,7 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 
 // Evaluate a single Expression Statement
 // An Expression Statement is statement that is only formed by expressions, like assigments or binary expressions
-func (e Evaluator) EvaluateExpressionStmt(node parser.ExpressionStmtNode, env *environment.Environment) values.RuntimeValue {
+func (e *Evaluator) EvaluateExpressionStmt(node parser.ExpressionStmtNode, env *environment.Environment) values.RuntimeValue {
 	return e.EvaluateExpression(node.Expression, env)
 }
 
@@ -448,7 +450,7 @@ func (e Evaluator) EvaluateVarDeclaration(node parser.VarDeclarationNode, env *e
 }
 
 // Evaluate an expression
-func (e Evaluator) EvaluateExpression(node parser.Exp, env *environment.Environment) values.RuntimeValue {
+func (e *Evaluator) EvaluateExpression(node parser.Exp, env *environment.Environment) values.RuntimeValue {
 
 	if node == nil {
 		return nil
@@ -461,7 +463,11 @@ func (e Evaluator) EvaluateExpression(node parser.Exp, env *environment.Environm
 	} else if node.ExpType() == "CallExpNode" {
 		return e.EvaluateCallExpression(node.(parser.CallExpNode), env)
 	} else if node.ExpType() == "IdentifierNode" {
-		return env.GetVar(node.(parser.IdentifierNode).Value, node.(parser.IdentifierNode).Line)
+		lookup, err := env.GetVar(node.(parser.IdentifierNode).Value, node.(parser.IdentifierNode).Line)
+		if err != nil {
+			return e.Panic(err.Error(), node.(parser.IdentifierNode).Line, env)
+		}
+		return lookup
 	} else if node.ExpType() == "UnaryExpNode" {
 		return e.EvaluateUnaryExpression(node.(parser.UnaryExpNode), env)
 	} else if node.ExpType() == "NumberNode" {
@@ -469,6 +475,8 @@ func (e Evaluator) EvaluateExpression(node parser.Exp, env *environment.Environm
 		return values.NumberValue{Value: parsedNumber}
 	} else if node.ExpType() == "StringNode" {
 		return values.StringValue{Value: node.(parser.StringNode).Value}
+	} else if node.ExpType() == "NothingNode" {
+		return values.NothingValue{}
 	} else if node.ExpType() == "IndexAccessExpNode" {
 		return e.EvaluateIndexAccessExpression(node.(parser.IndexAccessExpNode), env)
 	} else if node.ExpType() == "BooleanNode" {
@@ -553,10 +561,14 @@ func (e Evaluator) EvaluateStructMethodExpression(node parser.StructMethodDeclar
 	structName := node.Struct
 
 	// Check if struct exists and is a struct
-	structLup := env.GetVar(structName, node.Line)
+	structLup, err := env.GetVar(structName, node.Line)
+
+	if err != nil {
+		e.Panic(err.Error(), node.Line, env)
+	}
 
 	if structLup == nil || structLup.GetType() != "StructValue" {
-		Stop("Expected struct, got " + structLup.GetType() + " in line " + fmt.Sprint(node.Line))
+		e.Panic("Expected struct, got "+structLup.GetType(), node.Line, env)
 	}
 
 	// Create function value
@@ -588,7 +600,7 @@ func (e Evaluator) EvaluateMemberExpression(node parser.MemberExpNode, env *envi
 	fn := varValue.GetProp(node.Member.Value)
 
 	if fn == nil {
-		return Stop("Unknown member " + node.Member.Value + " in line " + fmt.Sprint(node.Line))
+		return e.Panic("Unknown member "+node.Member.Value, node.Line, env)
 	}
 
 	return fn
@@ -598,16 +610,23 @@ func (e Evaluator) EvaluateMemberExpression(node parser.MemberExpNode, env *envi
 // Evaluate an object initialization
 func (e Evaluator) EvaluateObjInitializeExpression(node parser.ObjectInitExpNode, env *environment.Environment) values.RuntimeValue {
 
-	// Struct name string
-	structName := node.Struct
-
 	// Syntax for object initialization is the same as dictionaries
 	propDict := node.Value
 
 	val := values.ObjectValue{}
 
 	// Lookup for struct
-	val.Struct = env.GetVar(structName, node.Line).(values.StructValue)
+	structLup := e.EvaluateExpression(node.Struct, env)
+
+	if structLup != nil && structLup.GetType() == "ErrorValue" {
+		return structLup
+	}
+
+	if _, ok := structLup.(values.StructValue); !ok {
+		return e.Panic("Expected struct, got "+structLup.GetType(), node.Line, env)
+	}
+
+	val.Struct = structLup.(values.StructValue)
 	val.Value = make(map[string]values.RuntimeValue)
 
 	// Evaluate expressions and set values
@@ -672,13 +691,13 @@ func (e Evaluator) EvaluateIndexAccessExpression(node parser.IndexAccessExpNode,
 		item, exists := val.Value[i]
 
 		if !exists {
-			return Stop("Undefined key '" + i + "' in line " + fmt.Sprint(node.Line))
+			return e.Panic("Undefined key '"+i, node.Line, env)
 		}
 
 		return item
 
 	default:
-		return Stop("At line " + fmt.Sprint(node.Line) + ":\nOnly arrays and dictionaries can be accessed by index")
+		return e.Panic("Only arrays and dictionaries can be accessed by index", node.Line, env)
 	}
 
 }
@@ -696,7 +715,7 @@ func (e Evaluator) EvaluateArrayExpression(node parser.ArrayExpNode, env *enviro
 
 }
 
-func (e Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environment.Environment) values.RuntimeValue {
+func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environment.Environment) values.RuntimeValue {
 
 	evaluatedArgs := []values.RuntimeValue{}
 
@@ -718,13 +737,20 @@ func (e Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environm
 	switch fn := calle.(type) {
 
 	case values.ErrorValue:
+
 		return fn
 	case values.NativeFunctionValue:
-		return fn.Value(evaluatedArgs)
-	case values.FunctionValue:
+		e.CallStack = append(e.CallStack, env.ModuleName+": "+strconv.Itoa(node.Line))
 
+		val := fn.Value(evaluatedArgs)
+		e.CallStack = e.CallStack[:len(e.CallStack)-1]
+		return val
+	case values.FunctionValue:
 		// Create new environment
 		newEnv := environment.NewEnvironment(env)
+		if fn.Environment != nil {
+			newEnv.Parent = fn.Environment.(*environment.Environment)
+		}
 
 		// Set this
 		if fn.Struct != "" {
@@ -740,6 +766,8 @@ func (e Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environm
 		}
 
 		var result values.RuntimeValue
+		// e.CallStack = append(e.CallStack, env.ModuleName+": "+strconv.Itoa(node.Line))
+		e.CallStackEntry(env.ModuleName, node.Line)
 
 		for _, stmt := range fn.Body {
 			result = e.EvaluateStmt(stmt, newEnv)
@@ -754,13 +782,17 @@ func (e Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environm
 				exp := e.EvaluateExpression(signal.Value, signal.Env.(*environment.Environment))
 
 				if exp.GetType() == "ErrorValue" {
+
 					return exp
 				}
+
+				e.CallStackExit()
 
 				return exp
 			}
 
 		}
+		e.CallStackExit()
 
 	}
 
@@ -822,7 +854,12 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 
 	if left.ExpType() == "IndexAccessExpNode" {
 		chain := e.ResolveIndexAccessChain(left.(parser.IndexAccessExpNode), env)
-		env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
+		result := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
+
+		if IsError(result) {
+			return result
+		}
+
 		return right
 	} else {
 		env.SetVar(left, right)
@@ -845,7 +882,7 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 	types := left.GetType()
 
 	if types != right.GetType() {
-		return Stop("Type mismatch in line: " + fmt.Sprint(node.Line) + ". " + types + " and " + right.GetType())
+		return e.Panic("Type mismatch: "+types+" and "+right.GetType(), node.Line, env)
 	}
 
 	if op == "+" {
@@ -858,19 +895,19 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 		if types == "NumberValue" {
 			return values.NumberValue{Value: left.GetNumber() - right.GetNumber()}
 		} else {
-			return Stop("Cant subtract with strings in line: " + fmt.Sprint(node.Line))
+			return e.Panic("Cant subtract with strings", node.Line, env)
 		}
 	} else if op == "*" {
 		if types == "NumberValue" {
 			return values.NumberValue{Value: left.GetNumber() * right.GetNumber()}
 		} else {
-			Stop("Cant multiply with strings in line: " + fmt.Sprint(node.Line))
+			e.Panic("Cant multiply with strings", node.Line, env)
 		}
 	} else if op == "/" {
 		if types == "NumberValue" {
 			return values.NumberValue{Value: left.GetNumber() / right.GetNumber()}
 		} else {
-			Stop("Cant divide with strings in line: " + fmt.Sprint(node.Line))
+			e.Panic("Cant divide with string", node.Line, env)
 		}
 	} else if op == "==" {
 		if types == "NumberValue" {
@@ -921,11 +958,30 @@ func (e Evaluator) EvaluateUnaryExpression(node parser.UnaryExpNode, env *enviro
 	}
 }
 
-func Stop(msg string) values.ErrorValue {
-	return values.ErrorValue{Value: msg}
+func (e *Evaluator) Panic(msg string, line int, env *environment.Environment) values.ErrorValue {
+	output := "Error in line " + fmt.Sprint(line) + " at module " + env.ModuleName + ":\n" + msg + "\n"
+	output += "Call stack:\n"
+	for _, call := range e.CallStack {
+		output += "\t" + call + "\n"
+	}
+	return values.ErrorValue{Value: output}
+}
+
+// e.CallStack, env.ModuleName+": "+strconv.Itoa(node.Line)
+func (e *Evaluator) CallStackEntry(mod string, line int) {
+	e.CallStack = append([]string{mod + ": " + strconv.Itoa(line)}, e.CallStack...)
+}
+
+func (e *Evaluator) CallStackExit() {
+	e.CallStack = e.CallStack[1:]
+}
+
+func Stop(msg string, line int, mod string, CallStack []string) values.ErrorValue {
+	output := "Error in line " + fmt.Sprint(line) + " at module " + mod + ":\n" + msg + "\n"
+
+	return values.ErrorValue{Value: output}
 }
 
 func IsError(val values.RuntimeValue) bool {
 	return (val != nil && val.GetType() == "ErrorValue")
-
 }

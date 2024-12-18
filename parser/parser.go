@@ -4,12 +4,14 @@ import (
 	"evie/lexer"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
 // Parser context object
 type ParserContext struct {
 	AvoidStructInit bool
+	Debug           bool
 }
 
 // Parser
@@ -19,7 +21,7 @@ type Parser struct {
 }
 
 func NewParser(tokens []lexer.Token) Parser {
-	return Parser{t: TokenIterator{Items: tokens}, context: ParserContext{AvoidStructInit: false}}
+	return Parser{t: TokenIterator{Items: tokens}, context: ParserContext{AvoidStructInit: false, Debug: false}}
 }
 
 func (p Parser) GetAST() []Stmt {
@@ -37,7 +39,6 @@ func (p Parser) GetAST() []Stmt {
 		if parsed != nil {
 			ast = append(ast, parsed)
 		}
-
 	}
 
 	return ast
@@ -81,6 +82,7 @@ func (p *Parser) ParseStmt() Stmt {
 	} else if token.Kind == "struct" {
 		return p.ParseStructDeclaration()
 	} else {
+
 		return p.ParseExpressionStmt()
 	}
 
@@ -127,9 +129,16 @@ func (p *Parser) ParseLoopStmt() LoopStmtNode {
 		node.Body = append(node.Body, p.ParseStmt())
 	}
 
-	if p.t.Get().Kind == "rbrace" {
+	if p.t.Get().Kind == "eol" {
 		p.t.Eat()
 	}
+
+	if p.t.Get().Kind == "rbrace" {
+		p.t.Eat()
+	} else {
+		Stop("Expected '}' in loop statement in line " + fmt.Sprint(p.t.Get().Line))
+	}
+
 	if len(node.Body) == 0 {
 		Stop("Empty loop statement in line " + fmt.Sprint(p.t.Get().Line))
 	}
@@ -336,6 +345,7 @@ func (p *Parser) ParseFunctionDeclaration() FunctionDeclarationNode {
 	p.t.Eat() // open brace
 
 	for {
+
 		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
 			break
 		}
@@ -344,13 +354,17 @@ func (p *Parser) ParseFunctionDeclaration() FunctionDeclarationNode {
 			p.t.Eat()
 			continue
 		}
-
 		node.Body = append(node.Body, p.ParseStmt())
+
 	}
 
-	p.t.Eat()
-
 	if p.t.Get().Kind == "eol" {
+		p.t.Eat()
+	}
+
+	if p.t.Get().Kind != "rbrace" {
+		Stop("Expected '}' in function declaration in line " + fmt.Sprint(p.t.Get().Line))
+	} else {
 		p.t.Eat()
 	}
 
@@ -394,11 +408,11 @@ func (p *Parser) ParseIfStmt() IfStatementNode {
 	// ELSE IF
 
 	node.ElseIf = make([]IfStatementNode, 0)
-
 	for {
 		if !(p.t.Get().Kind == "else" && p.t.GetNext().Lexeme == "if") {
 			break
 		}
+
 		p.t.Eat() // else
 		p.t.Eat() // if
 
@@ -462,7 +476,14 @@ func (p *Parser) ParseIfStmt() IfStatementNode {
 }
 
 func (p *Parser) ParseExpressionStmt() ExpressionStmtNode {
-	return ExpressionStmtNode{Expression: p.ParseExp()}
+	token := p.t.Get()
+	val := p.ParseExp()
+	if val == nil {
+		fmt.Println("exp stmt with null value")
+		fmt.Println("after token " + token.Lexeme + " line " + strconv.Itoa(token.Line))
+		os.Exit(1)
+	}
+	return ExpressionStmtNode{Expression: val}
 }
 
 func (p *Parser) ParseVarDeclaration() Stmt {
@@ -473,12 +494,17 @@ func (p *Parser) ParseVarDeclaration() Stmt {
 	node.Line = line
 
 	identifier := p.t.Eat()
-	operator := p.t.Eat()
-	expression := p.ParseExp()
 
 	node.Left = IdentifierNode{Value: identifier.Lexeme}
-	node.Operator = operator.Lexeme
-	node.Right = expression
+
+	if p.t.Get().Kind == "eol" {
+		node.Right = NothingNode{Line: line}
+	} else {
+		operator := p.t.Eat()
+		node.Operator = operator.Lexeme
+
+		node.Right = p.ParseExp()
+	}
 
 	return node
 }
@@ -493,6 +519,7 @@ func (p *Parser) ParseAssignmentExp() Exp {
 	left := p.ParseTernaryExp()
 
 	if p.t.Get().Lexeme == "=" {
+
 		operator := p.t.Eat()
 		right := p.ParseTernaryExp()
 		n := AssignmentNode{}
@@ -502,7 +529,6 @@ func (p *Parser) ParseAssignmentExp() Exp {
 		n.Right = right
 		left = n
 	}
-
 	return left
 }
 
@@ -534,7 +560,7 @@ func (p *Parser) ParseTernaryExp() Exp {
 
 func (p *Parser) ParseDictionaryInitialization() Exp {
 
-	if p.t.Get().Lexeme != "{" {
+	if p.t.Get().Lexeme != "{" || p.context.AvoidStructInit == true {
 		return p.ParseBinaryExp()
 	}
 
@@ -578,11 +604,11 @@ func (p *Parser) ParseDictionaryInitialization() Exp {
 		node.Value[key.Lexeme] = value
 
 	}
-	p.t.Eat()
 
-	if p.t.Get().Kind == "eol" || p.t.Get().Kind == "rbrace" {
+	if p.t.Get().Kind == "eol" {
 		p.t.Eat()
 	}
+	p.t.Eat()
 
 	return node
 }
@@ -664,7 +690,11 @@ func (p *Parser) parseObjectInitExp() Exp {
 
 		node := ObjectInitExpNode{}
 		node.Line = p.t.Get().Line
-		node.Struct = left.(IdentifierNode).Value
+
+		p.context.AvoidStructInit = true
+		p.context.AvoidStructInit = false
+
+		node.Struct = left
 		node.Value = p.ParseDictionaryInitialization().(DictionaryExpNode)
 
 		left = node
@@ -694,6 +724,7 @@ func (p *Parser) ParseMemberExp() Exp {
 	left := p.ParseCallMemberExp()
 
 	for p.t.Get().Lexeme == "." {
+
 		line := p.t.Eat().Line
 
 		n := MemberExpNode{}
@@ -734,13 +765,17 @@ func (p *Parser) ParseIndexAccessExp() Exp {
 			sliceNode := SliceExpNode{}
 			sliceNode.Line = line
 			sliceNode.Left = left
-			sliceNode.From = nil
+			sliceNode.From = NumberNode{Value: "0"}
 			sliceNode.To = p.ParseExp()
 			left = sliceNode
+
+			p.t.Eat()
+
 			return left
 		}
 
 		index := p.ParseExp()
+		// litter.Dump(index)
 
 		n := IndexAccessExpNode{}
 		n.Line = line
@@ -763,8 +798,10 @@ func (p *Parser) ParseIndexAccessExp() Exp {
 			left = n
 		}
 
-		p.t.Eat()
-
+		// p.t.Eat()
+		if p.t.Get().Lexeme == "]" {
+			p.t.Eat()
+		}
 	}
 
 	return left
@@ -791,6 +828,8 @@ func (p *Parser) parsePrimaryExp() Exp {
 		return IdentifierNode{Value: token.Lexeme, Line: token.Line}
 	} else if token.Kind == "number" {
 		return NumberNode{Value: token.Lexeme, Line: token.Line}
+	} else if token.Kind == "Nothing" {
+		return NothingNode{Line: token.Line}
 	} else if token.Kind == "string" {
 		return StringNode{Value: token.Lexeme, Line: token.Line}
 	} else if token.Kind == "lbracket" {
@@ -808,6 +847,7 @@ func (p *Parser) parsePrimaryExp() Exp {
 		p.t.Eat()
 		return v
 	} else {
+		Stop("Unexpected token: " + token.Lexeme + " in line " + fmt.Sprint(token.Line))
 		return nil
 	}
 }
@@ -865,6 +905,7 @@ func (p *Parser) ParseArrayInitializationExp() Exp {
 	node.Value = make([]Exp, 0)
 
 	for {
+
 		if p.t.Get().Kind == "rbracket" || p.t.Get().Kind == "eof" {
 			p.t.Eat()
 			break
@@ -879,7 +920,7 @@ func (p *Parser) ParseArrayInitializationExp() Exp {
 			p.t.Eat()
 			continue
 		}
-
+		// "a"
 		node.Value = append(node.Value, p.ParseExp())
 
 	}
@@ -890,4 +931,10 @@ func (p *Parser) ParseArrayInitializationExp() Exp {
 func Stop(msg string) {
 	fmt.Println(msg)
 	os.Exit(1)
+}
+
+func (p *Parser) Debug(text string) {
+	if p.context.Debug {
+		fmt.Println(text)
+	}
 }

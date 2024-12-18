@@ -44,6 +44,12 @@ type IdentifierNode struct {
 
 func (n IdentifierNode) ExpType() string { return "IdentifierNode" }
 
+type NothingNode struct {
+	Line int
+}
+
+func (n NothingNode) ExpType() string { return "NothingNode" }
+
 type AssignmentNode struct {
 	Left     Exp
 	Operator string
@@ -102,7 +108,7 @@ func (n DictionaryExpNode) ExpType() string { return "DictionaryExpNode" }
 
 // Struct Initialization, NOT ANY OBJECT LIKE JS
 type ObjectInitExpNode struct {
-	Struct string
+	Struct Exp
 	Value  DictionaryExpNode
 	Line   int
 }

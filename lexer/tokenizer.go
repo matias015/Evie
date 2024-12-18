@@ -42,11 +42,13 @@ func Tokenize(input string) []Token {
 		if token == '#' {
 			t.Eat()
 			for {
-				if t.HasNext() && (t.Get() != '\r' && t.Get() != '\n') {
+				if t.Get() == '\r' && t.GetNext() == '\n' {
 					line += 1
 					t.Eat()
-				} else {
+					t.Eat()
 					break
+				} else {
+					t.Eat()
 				}
 			}
 			continue
@@ -357,6 +359,8 @@ func TokenFromWord(w string, l int) Token {
 	} else if w == "fn" {
 		Kind = w
 	} else if w == "if" {
+		Kind = w
+	} else if w == "Nothing" {
 		Kind = w
 	} else if w == "as" {
 		Kind = w

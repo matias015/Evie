@@ -12,6 +12,7 @@ func NewEnvironment(parent *Environment) *Environment {
 
 	if parent != nil {
 		env.ImportMap = parent.ImportMap
+		env.ModuleName = parent.ModuleName
 	}
 
 	return &env

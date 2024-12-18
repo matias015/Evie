@@ -127,6 +127,7 @@ type FunctionValue struct {
 	StructObjRef ObjectValue
 	Body         []parser.Stmt
 	Parameters   []string
+	Environment  interface{}
 }
 
 func (s FunctionValue) GetNumber() float64 {
@@ -383,4 +384,26 @@ func (s NamespaceValue) GetBool() bool {
 
 func (s NamespaceValue) GetProp(name string) RuntimeValue {
 	return s.Value[name]
+}
+
+type NothingValue struct {
+}
+
+func (s NothingValue) GetNumber() float64 {
+	return 0
+}
+func (s NothingValue) GetType() string {
+	return "NothingValue"
+}
+
+func (s NothingValue) GetStr() string {
+	return "Nothing"
+}
+
+func (s NothingValue) GetBool() bool {
+	return false
+}
+
+func (s NothingValue) GetProp(name string) RuntimeValue {
+	return NothingValue{}
 }

@@ -3,6 +3,7 @@ package environment
 import (
 	"evie/parser"
 	"evie/values"
+	"fmt"
 	"strconv"
 )
 
@@ -17,7 +18,7 @@ type Environment struct {
 	// Imported Files
 	ImportMap map[string][]string
 
-	// Who imported this file
+	// Module Name
 	ModuleName string
 }
 
@@ -27,11 +28,11 @@ func (e *Environment) DeclareVar(name string, value values.RuntimeValue) {
 }
 
 // Returns the value of a variable
-func (e *Environment) GetVar(name string, line int) values.RuntimeValue {
+func (e *Environment) GetVar(name string, line int) (values.RuntimeValue, error) {
 
 	// Look for the variable in the current environment
 	if value, ok := e.Variables[name]; ok {
-		return value
+		return value, nil
 	}
 
 	// If the variable is not found in the current environment
@@ -39,7 +40,7 @@ func (e *Environment) GetVar(name string, line int) values.RuntimeValue {
 		return e.Parent.GetVar(name, line)
 	}
 
-	return Stop("At line " + strconv.Itoa(line) + ": Undefined variable '" + name + "'")
+	return nil, fmt.Errorf("Undefined variable '%s'", name)
 }
 
 // Assigns a value to a variable
@@ -52,7 +53,7 @@ func (e *Environment) SetVar(name parser.Exp, value values.RuntimeValue) {
 			if e.Parent != nil {
 				e.Parent.SetVar(left, value)
 			} else {
-				Stop("Undefined variable '" + left.Value + "'" + " at line " + strconv.Itoa(left.Line))
+				Stop("Undefined variable '"+left.Value+"'", left.Line, e.ModuleName)
 			}
 		}
 		e.Variables[left.Value] = value
@@ -87,7 +88,7 @@ func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.
 			e.Parent.ModifyMemberValue(left, value, chain)
 			return
 		} else {
-			Stop("Undefined variable '" + varName + "'" + " at line " + strconv.Itoa(left.Line))
+			Stop("Undefined variable '"+varName+"'", left.Line, e.ModuleName)
 		}
 	}
 
@@ -104,7 +105,7 @@ func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.
 		case values.ObjectValue: // each prop of chain is a str so convert to int
 			endValue = val.Value[el] // access to the next property of the chain in the array
 		default:
-			Stop("Only objects can be accessed by dot notation")
+			Stop("Only objects can be accessed by dot notation", left.Line, e.ModuleName)
 		}
 	}
 
@@ -116,11 +117,11 @@ func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.
 		// Assign the value
 		val.Value[lastIndex] = value
 	default:
-		Stop("Only objects can be accessed by dot notation")
+		Stop("Only objects can be accessed by dot notation", left.Line, e.ModuleName)
 	}
 }
 
-func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value values.RuntimeValue, chain []string) {
+func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value values.RuntimeValue, chain []string) values.RuntimeValue {
 	// Get the initial element of the chain, which is the base variable
 	varName := chain[0]
 
@@ -130,10 +131,9 @@ func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value val
 
 	if !exists {
 		if e.Parent != nil {
-			e.Parent.ModifyIndexValue(left, value, chain)
-			return
+			return e.Parent.ModifyIndexValue(left, value, chain)
 		} else {
-			Stop("Undefined variable '" + varName + "'" + " at line " + strconv.Itoa(left.Line))
+			return Stop("Undefined variable '"+varName+"'", left.Line, e.ModuleName)
 		}
 	}
 
@@ -152,8 +152,10 @@ func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value val
 			endValue = val.Value[elToInt]  // access to the next property of the chain in the array
 		case values.DictionaryValue:
 			endValue = val.Value[el]
+		case values.StringValue:
+			endValue = val
 		default:
-			Stop("Only arrays and dictionaries can be accessed by index")
+			return Stop("Only arrays and dictionaries can be accessed by index", left.Line, e.ModuleName)
 		}
 	}
 
@@ -169,9 +171,11 @@ func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value val
 		lastIndex := chain[len(chain)-1]
 		// Assign the value
 		val.Value[lastIndex] = value
+
 	default:
-		Stop("Only arrays and dictionaries can be accessed by index")
+		return Stop("Only arrays and dictionaries can be assigned by index", left.Line, e.ModuleName)
 	}
+	return values.BooleanValue{Value: true}
 }
 
 // Creates an access props chain
@@ -196,6 +200,7 @@ func (e *Environment) ResolveMemberAccessChain(node parser.MemberExpNode) []stri
 	return indexes
 }
 
-func Stop(msg string) values.ErrorValue {
-	return values.ErrorValue{Value: msg}
+func Stop(msg string, line int, mod string) values.ErrorValue {
+	output := "Error in line " + fmt.Sprint(line) + " at module " + mod + ":\n" + msg + "\n"
+	return values.ErrorValue{Value: output}
 }

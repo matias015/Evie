@@ -1,6 +1,9 @@
 package values
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 /*
 ----------------------------------------------------------
@@ -28,6 +31,7 @@ func (s StringValue) GetProp(name string) RuntimeValue {
 	props := map[string]RuntimeValue{}
 
 	props = map[string]RuntimeValue{
+
 		"len": NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
 				return NumberValue{Value: float64(len(s.GetStr()))}
@@ -65,6 +69,16 @@ func (s StringValue) GetProp(name string) RuntimeValue {
 					output = output + char
 				}
 				return StringValue{Value: output}
+			},
+		},
+		"trim": NativeFunctionValue{
+			Value: func(args []RuntimeValue) RuntimeValue {
+
+				needed := " "
+				if len(args) > 0 {
+					needed = args[0].GetStr()
+				}
+				return StringValue{Value: strings.Trim(s.Value, needed)}
 			},
 		},
 		"slice": NativeFunctionValue{

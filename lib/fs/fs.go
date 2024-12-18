@@ -13,6 +13,8 @@ type FileValue struct {
 	Reader *bufio.Reader
 }
 
+func (s FileValue) SetValue(value values.RuntimeValue) {}
+
 func (s FileValue) GetStr() string     { return "" }
 func (s FileValue) GetNumber() float64 { return 1 }
 func (s FileValue) GetBool() bool {

@@ -6,6 +6,7 @@ import (
 	"evie/values"
 	"fmt"
 	"os"
+	"strconv"
 
 	"time"
 
@@ -15,8 +16,8 @@ import (
 func SetupEnvironment(env *environment.Environment) {
 
 	env.Variables["input"] = values.NativeFunctionValue{Value: ReadUserInput}
-
 	env.Variables["print"] = values.NativeFunctionValue{Value: PrintStdOut}
+	env.Variables["number"] = values.NativeFunctionValue{Value: ToNumber}
 
 	env.DeclareVar("time", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
 		now := time.Now()
@@ -40,6 +41,23 @@ func SetupEnvironment(env *environment.Environment) {
 	}
 
 	env.Variables["getArgs"] = values.NativeFunctionValue{Value: GetArguments}
+}
+
+func ToNumber(args []values.RuntimeValue) values.RuntimeValue {
+	val := args[0]
+
+	switch value := val.(type) {
+	case values.StringValue:
+		number, err := strconv.ParseFloat(value.Value, 64)
+		if err != nil {
+			return values.ErrorValue{Value: err.Error()}
+		}
+		return values.NumberValue{Value: number}
+	case values.NumberValue:
+		return value
+	default:
+		return values.NumberValue{Value: 0}
+	}
 }
 
 func ReadUserInput(args []values.RuntimeValue) values.RuntimeValue {
@@ -77,6 +95,8 @@ func PrintStdOut(args []values.RuntimeValue) values.RuntimeValue {
 				fmt.Print(", ")
 			}
 			fmt.Print("}")
+		} else {
+			fmt.Print(arg.GetStr())
 		}
 	}
 	print("\n")
