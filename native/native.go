@@ -18,6 +18,7 @@ func SetupEnvironment(env *environment.Environment) {
 	env.Variables["input"] = values.NativeFunctionValue{Value: ReadUserInput}
 	env.Variables["print"] = values.NativeFunctionValue{Value: PrintStdOut}
 	env.Variables["number"] = values.NativeFunctionValue{Value: ToNumber}
+	env.Variables["string"] = values.NativeFunctionValue{Value: ToString}
 
 	env.DeclareVar("time", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
 		now := time.Now()
@@ -60,6 +61,30 @@ func ToNumber(args []values.RuntimeValue) values.RuntimeValue {
 	}
 }
 
+func ToString(args []values.RuntimeValue) values.RuntimeValue {
+	arg := args[0]
+
+	switch value := arg.(type) {
+	case values.StringValue:
+		return value
+	case values.NumberValue:
+		return values.StringValue{Value: value.GetStr()}
+	case values.BooleanValue:
+		return values.StringValue{Value: value.GetStr()}
+	case values.ArrayValue:
+		str := ""
+
+		for _, item := range value.Value {
+			str += item.GetStr()
+			str += ", "
+		}
+
+		return values.StringValue{Value: str}
+	default:
+		return values.ErrorValue{Value: "Invalid conversion to string with type " + arg.GetType()}
+	}
+}
+
 func ReadUserInput(args []values.RuntimeValue) values.RuntimeValue {
 	scanner := bufio.NewScanner(os.Stdin)
 	if !scanner.Scan() { // Lee una línea completa
@@ -81,7 +106,7 @@ func PrintStdOut(args []values.RuntimeValue) values.RuntimeValue {
 			fmt.Print("] ")
 		}
 		if arg.GetType() == "StringValue" {
-			fmt.Print("\"" + arg.GetStr() + "\"")
+			fmt.Print(arg.GetStr())
 		} else if arg.GetType() == "NumberValue" {
 			fmt.Print(arg.GetNumber())
 		} else if arg.GetType() == "BooleanValue" {

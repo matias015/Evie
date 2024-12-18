@@ -13,6 +13,8 @@ type RuntimeValue interface {
 	GetProp(string) RuntimeValue
 }
 
+// This is kinda a mess
+// GetProp allows to access to props of objects or native methods for native data types
 /*
 ----------------------------------------------------------
 --- Number value

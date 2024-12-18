@@ -1,4 +1,9 @@
 
-fn mod(){
-	print(x)
+struct Person{
+	name,
+	age
+}
+
+Person -> hello(){
+	print(2)
 }

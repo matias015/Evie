@@ -100,7 +100,7 @@ func ReadFile(args []values.RuntimeValue) values.RuntimeValue {
 
 func OpenFile(args []values.RuntimeValue) values.RuntimeValue {
 
-	file, err := os.OpenFile(args[0].GetStr(), os.O_RDWR|os.O_APPEND, 0644)
+	file, err := os.OpenFile(args[0].GetStr(), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 
 	if err != nil {
 		return values.ErrorValue{Value: err.Error()}

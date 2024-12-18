@@ -19,10 +19,6 @@ func (t TokenIterator) Get() lexer.Token {
 func (t *TokenIterator) Eat() lexer.Token {
 	char := t.Items[t.Index]
 	t.Index++
-	// fmt.Println("char eaten " + char.Lexeme)
-	// if char.Lexeme == "}" {
-	// 	panic(2)
-	// }
 	return char
 }
 

@@ -120,6 +120,14 @@ func Tokenize(input string) []Token {
 			t.Eat()
 			for {
 				if t.HasNext() && t.Get() != '"' {
+
+					if string(t.Get()) == "\\" && string(t.GetNext()) == "n" {
+						t.Eat()
+						t.Eat()
+						word += string('\n')
+						continue
+					}
+
 					if t.Get() == '\r' && t.GetNext() == '\n' {
 						line += 1
 					}

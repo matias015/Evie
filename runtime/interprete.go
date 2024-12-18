@@ -577,6 +577,7 @@ func (e Evaluator) EvaluateStructMethodExpression(node parser.StructMethodDeclar
 	fn.Body = node.Function.Body
 	fn.Parameters = node.Function.Parameters
 	fn.Struct = structName
+	fn.Environment = env
 
 	// Store function in struct
 	env.Variables[structName].(values.StructValue).Methods[node.Function.Name] = fn
@@ -611,31 +612,54 @@ func (e Evaluator) EvaluateMemberExpression(node parser.MemberExpNode, env *envi
 func (e Evaluator) EvaluateObjInitializeExpression(node parser.ObjectInitExpNode, env *environment.Environment) values.RuntimeValue {
 
 	// Syntax for object initialization is the same as dictionaries
+	// So initialize one for obtaining the values
 	propDict := node.Value
 
+	// val will be the final object where we will store the values
 	val := values.ObjectValue{}
 
-	// Lookup for struct
+	// Lookup for the base struct
 	structLup := e.EvaluateExpression(node.Struct, env)
 
 	if structLup != nil && structLup.GetType() == "ErrorValue" {
 		return structLup
 	}
 
+	// If when evaluating the struct it is not a struct, return error
 	if _, ok := structLup.(values.StructValue); !ok {
-		return e.Panic("Expected struct, got "+structLup.GetType(), node.Line, env)
+		return e.Panic("You only can initialize objects of structs, not of "+structLup.GetType(), node.Line, env)
 	}
 
 	val.Struct = structLup.(values.StructValue)
 	val.Value = make(map[string]values.RuntimeValue)
 
+	// Create a map with the properties defined in the struct
+	// So we can check if the property exists with less complexity
+	structProperties := make(map[string]bool)
+
+	// Initialize each property of the object with nothing
+	// And at the same type fill the map of properties created earlier
+	for _, prop := range val.Struct.Properties {
+		val.Value[prop] = values.NothingValue{}
+		structProperties[prop] = true
+	}
+
 	// Evaluate expressions and set values
-	// TODO: Allow only set values of properties defined in struct
+	// For each property defined in the initialization, which is parsed as a dictionary
+	// Check if that property exists in the struct by using the map created earlier
 	for key, exp := range propDict.Value {
-		value := e.EvaluateExpression(exp, env)
+
+		if _, ok := structProperties[key]; !ok {
+			return e.Panic("Unknown property "+key, node.Line, env)
+		}
+
+		value := e.EvaluateExpression(exp, env) // Evaluate value
+
 		if value.GetType() == "ErrorValue" {
 			return value
 		}
+
+		// Add the value to the map of properties of the object
 		val.Value[key] = value
 	}
 
@@ -743,12 +767,21 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 		e.CallStack = append(e.CallStack, env.ModuleName+": "+strconv.Itoa(node.Line))
 
 		val := fn.Value(evaluatedArgs)
+
+		// NATIVE FUNCTION RETURNS ERROR VALUES WITH DIFERENT FORMAT SO CREATE A NEW PANIC
+		// TODO: make native functions return errors like environment functions with return values = (RuntimeValue, error)
+		if val.GetType() == "ErrorValue" {
+			return e.Panic(val.GetStr(), node.Line, env)
+		}
+
 		e.CallStack = e.CallStack[:len(e.CallStack)-1]
 		return val
 	case values.FunctionValue:
+
 		// Create new environment
 		newEnv := environment.NewEnvironment(env)
 		if fn.Environment != nil {
+			newEnv.ModuleName = fn.Environment.(*environment.Environment).ModuleName
 			newEnv.Parent = fn.Environment.(*environment.Environment)
 		}
 
@@ -862,7 +895,11 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 
 		return right
 	} else {
-		env.SetVar(left, right)
+		_, err := env.SetVar(left, right)
+
+		if err != nil {
+			return e.Panic(err.Error(), node.Line, env)
+		}
 	}
 
 	return right
@@ -956,32 +993,4 @@ func (e Evaluator) EvaluateUnaryExpression(node parser.UnaryExpNode, env *enviro
 	} else {
 		return nil
 	}
-}
-
-func (e *Evaluator) Panic(msg string, line int, env *environment.Environment) values.ErrorValue {
-	output := "Error in line " + fmt.Sprint(line) + " at module " + env.ModuleName + ":\n" + msg + "\n"
-	output += "Call stack:\n"
-	for _, call := range e.CallStack {
-		output += "\t" + call + "\n"
-	}
-	return values.ErrorValue{Value: output}
-}
-
-// e.CallStack, env.ModuleName+": "+strconv.Itoa(node.Line)
-func (e *Evaluator) CallStackEntry(mod string, line int) {
-	e.CallStack = append([]string{mod + ": " + strconv.Itoa(line)}, e.CallStack...)
-}
-
-func (e *Evaluator) CallStackExit() {
-	e.CallStack = e.CallStack[1:]
-}
-
-func Stop(msg string, line int, mod string, CallStack []string) values.ErrorValue {
-	output := "Error in line " + fmt.Sprint(line) + " at module " + mod + ":\n" + msg + "\n"
-
-	return values.ErrorValue{Value: output}
-}
-
-func IsError(val values.RuntimeValue) bool {
-	return (val != nil && val.GetType() == "ErrorValue")
 }

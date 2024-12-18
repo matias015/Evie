@@ -44,7 +44,7 @@ func (e *Environment) GetVar(name string, line int) (values.RuntimeValue, error)
 }
 
 // Assigns a value to a variable
-func (e *Environment) SetVar(name parser.Exp, value values.RuntimeValue) {
+func (e *Environment) SetVar(name parser.Exp, value values.RuntimeValue) (bool, error) {
 
 	switch left := name.(type) {
 	case parser.IdentifierNode: // it is simple asignment like a = Exp
@@ -57,24 +57,27 @@ func (e *Environment) SetVar(name parser.Exp, value values.RuntimeValue) {
 			}
 		}
 		e.Variables[left.Value] = value
+		return true, nil
 	// case parser.IndexAccessExpNode: // it is index assignment like a[i] = Exp or a[b][c] = Exp
 	//  -> This is made by the evaluator
 	case parser.MemberExpNode: // it is index assignment like a[i] = Exp or a[b][c] = Exp
-		e.ModifyByMember(left, value)
+		return e.ModifyByMember(left, value)
+	default:
+		return false, fmt.Errorf("Invalid assignment")
 	}
 }
 
 // Assigns a value to a variable by member
 // ex a.b = 1 or a.b.c = 1
-func (e *Environment) ModifyByMember(left parser.MemberExpNode, value values.RuntimeValue) {
+func (e *Environment) ModifyByMember(left parser.MemberExpNode, value values.RuntimeValue) (bool, error) {
 	// Create a access props chain
 	chain := e.ResolveMemberAccessChain(left)
 
 	// Assign the value
-	e.ModifyMemberValue(left, value, chain)
+	return e.ModifyMemberValue(left, value, chain)
 }
 
-func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.RuntimeValue, chain []string) {
+func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.RuntimeValue, chain []string) (bool, error) {
 	// Get the initial element of the chain, which is the base variable
 	varName := chain[0]
 
@@ -85,10 +88,9 @@ func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.
 
 	if !exists {
 		if e.Parent != nil {
-			e.Parent.ModifyMemberValue(left, value, chain)
-			return
+			return e.Parent.ModifyMemberValue(left, value, chain)
 		} else {
-			Stop("Undefined variable '"+varName+"'", left.Line, e.ModuleName)
+			return false, fmt.Errorf("Undefined variable '" + varName + "'")
 		}
 	}
 
@@ -105,19 +107,29 @@ func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.
 		case values.ObjectValue: // each prop of chain is a str so convert to int
 			endValue = val.Value[el] // access to the next property of the chain in the array
 		default:
-			Stop("Only objects can be accessed by dot notation", left.Line, e.ModuleName)
+			return false, fmt.Errorf("Only objects can be accessed by dot notation")
 		}
 	}
 
 	// Assign the value
 	switch val := endValue.(type) {
 	case values.ObjectValue:
+
 		// Get the last element of the chain and convert it to int
 		lastIndex := chain[len(chain)-1]
+
+		_, propExists := val.Value[lastIndex]
+
+		if !propExists {
+			return false, fmt.Errorf("Undefined property '" + chain[len(chain)-1] + "' in object")
+		}
+
 		// Assign the value
 		val.Value[lastIndex] = value
+
+		return true, nil
 	default:
-		Stop("Only objects can be accessed by dot notation", left.Line, e.ModuleName)
+		return false, fmt.Errorf("Only objects can be accessed by dot notation")
 	}
 }
 
