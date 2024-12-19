@@ -23,8 +23,12 @@ type Environment struct {
 }
 
 // Declares a variable
-func (e *Environment) DeclareVar(name string, value values.RuntimeValue) {
+func (e *Environment) DeclareVar(name string, value values.RuntimeValue) (bool, error) {
+	if _, ok := e.Variables[name]; ok {
+		return false, fmt.Errorf("Variable '%s' already declared", name)
+	}
 	e.Variables[name] = value
+	return true, nil
 }
 
 // Returns the value of a variable
@@ -51,9 +55,9 @@ func (e *Environment) SetVar(name parser.Exp, value values.RuntimeValue) (bool, 
 		_, exists := e.Variables[left.Value]
 		if !exists {
 			if e.Parent != nil {
-				e.Parent.SetVar(left, value)
+				return e.Parent.SetVar(left, value)
 			} else {
-				Stop("Undefined variable '"+left.Value+"'", left.Line, e.ModuleName)
+				return false, fmt.Errorf("Undefined variable '" + left.Value + "'")
 			}
 		}
 		e.Variables[left.Value] = value
@@ -133,7 +137,7 @@ func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.
 	}
 }
 
-func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value values.RuntimeValue, chain []string) values.RuntimeValue {
+func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value values.RuntimeValue, chain []string) (bool, error) {
 	// Get the initial element of the chain, which is the base variable
 	varName := chain[0]
 
@@ -145,7 +149,7 @@ func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value val
 		if e.Parent != nil {
 			return e.Parent.ModifyIndexValue(left, value, chain)
 		} else {
-			return Stop("Undefined variable '"+varName+"'", left.Line, e.ModuleName)
+			return false, fmt.Errorf("Undefined variable '" + varName + "'")
 		}
 	}
 
@@ -167,27 +171,47 @@ func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value val
 		case values.StringValue:
 			endValue = val
 		default:
-			return Stop("Only arrays and dictionaries can be accessed by index", left.Line, e.ModuleName)
+			return false, fmt.Errorf("Only arrays and dictionaries can be accessed by index")
 		}
 	}
 
 	// Assign the value
 	switch val := endValue.(type) {
-	case values.ArrayValue:
+	case *values.ArrayValue:
 		// Get the last element of the chain and convert it to int
 		lastIndex, _ := strconv.Atoi(chain[len(chain)-1])
 		// Assign the value
+		if lastIndex >= len(val.Value) {
+			return false, fmt.Errorf("Index " + chain[len(chain)-1] + " out of range")
+		}
 		val.Value[lastIndex] = value
 	case values.DictionaryValue:
 		// Get the last element of the chain and convert it to int
 		lastIndex := chain[len(chain)-1]
+
+		_, propExists := val.Value[lastIndex]
+
+		if !propExists {
+			return false, fmt.Errorf("Undefined property '" + chain[len(chain)-1] + "' in dictionary")
+		}
+
 		// Assign the value
 		val.Value[lastIndex] = value
+	case *values.StringValue:
+		lastIndex, _ := strconv.Atoi(chain[len(chain)-1])
+		init := val.Value[0:lastIndex]
+		end := val.Value[lastIndex+1:]
 
-	default:
-		return Stop("Only arrays and dictionaries can be assigned by index", left.Line, e.ModuleName)
+		setValue := values.StringValue{Value: init + value.GetStr() + end}
+
+		fn := val.GetProp(&endValue, "set")
+		res := fn.(values.NativeFunctionValue).Value([]values.RuntimeValue{setValue})
+
+		if res.GetType() == "ErrorValue" {
+			return false, fmt.Errorf("Error: " + res.GetStr())
+		}
 	}
-	return values.BooleanValue{Value: true}
+	return true, nil
 }
 
 // Creates an access props chain

@@ -98,7 +98,7 @@ func Tokenize(input string) []Token {
 			t.Eat()
 			word += string(token)
 			for {
-				if t.HasNext() && isNumber(t.Get()) {
+				if t.HasNext() && (isNumber(t.Get()) || t.Get() == '.') {
 					word += string(t.Eat())
 				} else {
 					break

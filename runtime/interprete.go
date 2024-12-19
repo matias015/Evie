@@ -189,7 +189,7 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 
 		if IsError(ret) {
 
-			newenv.DeclareVar("error", ret)
+			newenv.Variables["error"] = ret
 
 			// CATCH BODY
 			for _, cstmt := range catch {
@@ -254,7 +254,7 @@ func (e Evaluator) EvaluateForInStmt(node parser.ForInSatementNode, env *environ
 
 	if iterator.GetType() == "ArrayValue" {
 
-		iterValues := iterator.(values.ArrayValue).Value
+		iterValues := iterator.(*values.ArrayValue).Value
 
 		for index, value := range iterValues {
 
@@ -296,7 +296,7 @@ func (e Evaluator) EvaluateForInStmt(node parser.ForInSatementNode, env *environ
 				break
 			}
 
-			newEnv.Variables[node.IndexVarName] = values.StringValue{Value: index}
+			newEnv.Variables[node.IndexVarName] = values.StringValue{Value: index, Mutable: false}
 			if node.IndexVarName != "" {
 				newEnv.Variables[node.LocalVarName] = value
 			}
@@ -332,7 +332,11 @@ func (e Evaluator) EvaluatStructDeclarationStmt(node parser.StructDeclarationNod
 	rtValue.Properties = node.Properties
 	rtValue.Methods = make(map[string]values.RuntimeValue)
 
-	env.DeclareVar(node.Name, rtValue)
+	_, err := env.DeclareVar(node.Name, rtValue)
+
+	if err != nil {
+		return e.Panic(err.Error(), node.Line, env)
+	}
 
 	return values.BooleanValue{Value: true}
 }
@@ -347,7 +351,11 @@ func (e Evaluator) EvaluateFunctionDeclarationStmt(node parser.FunctionDeclarati
 	fn.Struct = ""
 	fn.Environment = env
 
-	env.DeclareVar(node.Name, fn)
+	_, err := env.DeclareVar(node.Name, fn)
+
+	if err != nil {
+		return e.Panic(err.Error(), node.Line, env)
+	}
 
 	return values.BooleanValue{Value: true}
 }
@@ -444,7 +452,11 @@ func (e Evaluator) EvaluateVarDeclaration(node parser.VarDeclarationNode, env *e
 		return parsed
 	}
 
-	env.DeclareVar(identifier.Value, parsed)
+	_, err := env.DeclareVar(identifier.Value, parsed)
+
+	if err != nil {
+		return e.Panic(err.Error(), node.Line, env)
+	}
 
 	return values.BooleanValue{Value: true}
 }
@@ -474,7 +486,7 @@ func (e *Evaluator) EvaluateExpression(node parser.Exp, env *environment.Environ
 		parsedNumber, _ := strconv.ParseFloat(node.(parser.NumberNode).Value, 2)
 		return values.NumberValue{Value: parsedNumber}
 	} else if node.ExpType() == "StringNode" {
-		return values.StringValue{Value: node.(parser.StringNode).Value}
+		return &values.StringValue{Value: node.(parser.StringNode).Value, Mutable: false}
 	} else if node.ExpType() == "NothingNode" {
 		return values.NothingValue{}
 	} else if node.ExpType() == "IndexAccessExpNode" {
@@ -517,7 +529,6 @@ func (e Evaluator) EvaluateSliceExpression(node parser.SliceExpNode, env *enviro
 
 	value := e.EvaluateExpression(node.Left, env)
 	init := e.EvaluateExpression(node.From, env)
-
 	if (init != nil && init.GetType() == "ErrorValue") || (value != nil && value.GetType() == "ErrorValue") {
 		return init
 	}
@@ -532,20 +543,21 @@ func (e Evaluator) EvaluateSliceExpression(node parser.SliceExpNode, env *enviro
 	}
 
 	switch value.(type) {
-	case values.ArrayValue:
+	case *values.ArrayValue:
 		if end == nil {
 			end = values.NumberValue{Value: float64(len(value.(values.ArrayValue).Value))}
 		}
 
-		fn := value.GetProp("slice")
+		fn := value.GetProp(&value, "slice")
 		ret := fn.(values.NativeFunctionValue).Value([]values.RuntimeValue{init, end})
+
 		return ret
 	case values.StringValue:
 		if end == nil {
 			end = values.NumberValue{Value: float64(len(value.(values.StringValue).Value))}
 		}
 
-		fn := value.GetProp("slice")
+		fn := value.GetProp(&value, "slice")
 		ret := fn.(values.NativeFunctionValue).Value([]values.RuntimeValue{init, end})
 		return ret
 	default:
@@ -598,7 +610,7 @@ func (e Evaluator) EvaluateMemberExpression(node parser.MemberExpNode, env *envi
 		return varValue
 	}
 
-	fn := varValue.GetProp(node.Member.Value)
+	fn := varValue.GetProp(&varValue, node.Member.Value)
 
 	if fn == nil {
 		return e.Panic("Unknown member "+node.Member.Value, node.Line, env)
@@ -705,12 +717,18 @@ func (e Evaluator) EvaluateIndexAccessExpression(node parser.IndexAccessExpNode,
 	var i string = index.GetStr()
 
 	switch val := identifier.(type) {
-	case values.ArrayValue:
+	case *values.ArrayValue:
 		iToInt, _ := strconv.Atoi(i)
+		if iToInt < 0 {
+			iToInt = len(val.Value) + iToInt
+		}
+		if iToInt >= len(val.Value) {
+			return e.Panic("Index "+i+" out of range", node.Line, env)
+		}
 		return val.Value[iToInt]
 	case values.StringValue:
 		iToInt, _ := strconv.Atoi(i)
-		return values.StringValue{Value: string(val.Value[iToInt])}
+		return values.StringValue{Value: string(val.Value[iToInt]), Mutable: false}
 	case values.DictionaryValue:
 		item, exists := val.Value[i]
 
@@ -728,7 +746,7 @@ func (e Evaluator) EvaluateIndexAccessExpression(node parser.IndexAccessExpNode,
 
 func (e Evaluator) EvaluateArrayExpression(node parser.ArrayExpNode, env *environment.Environment) values.RuntimeValue {
 
-	rtvalue := values.ArrayValue{}
+	rtvalue := &values.ArrayValue{}
 	rtvalue.Value = make([]values.RuntimeValue, 0)
 
 	for _, exp := range node.Value {
@@ -787,7 +805,7 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 
 		// Set this
 		if fn.Struct != "" {
-			newEnv.DeclareVar("this", fn.StructObjRef)
+			newEnv.Variables["this"] = fn.StructObjRef
 		}
 
 		for index, param := range fn.Parameters {
@@ -795,7 +813,7 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 			if value.GetType() == "ErrorValue" {
 				return value
 			}
-			newEnv.DeclareVar(param, value)
+			newEnv.Variables[param] = value
 		}
 
 		var result values.RuntimeValue
@@ -887,10 +905,10 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 
 	if left.ExpType() == "IndexAccessExpNode" {
 		chain := e.ResolveIndexAccessChain(left.(parser.IndexAccessExpNode), env)
-		result := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
+		_, err := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
 
-		if IsError(result) {
-			return result
+		if err != nil {
+			return e.Panic(err.Error(), node.Line, env)
 		}
 
 		return right
@@ -910,8 +928,11 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 	left := e.EvaluateExpression(node.Left, env)
 	right := e.EvaluateExpression(node.Right, env)
 
-	if left.GetType() == "ErrorValue" || right.GetType() == "ErrorValue" {
+	if left.GetType() == "ErrorValue" {
 		return left
+	}
+	if right.GetType() == "ErrorValue" {
+		return right
 	}
 
 	op := node.Operator
@@ -924,7 +945,7 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 
 	if op == "+" {
 		if types == "StringValue" {
-			return values.StringValue{Value: left.GetStr() + right.GetStr()}
+			return values.StringValue{Value: left.GetStr() + right.GetStr(), Mutable: false}
 		} else if types == "NumberValue" {
 			return values.NumberValue{Value: left.GetNumber() + right.GetNumber()}
 		}

@@ -1,8 +1,2 @@
-import a
 
-var p = a.Person{
-	name: "matias",
-	age: 22
-}
-
-print(string(p) + "s")
+print("This is a test!")

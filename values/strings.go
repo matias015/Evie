@@ -11,7 +11,8 @@ import (
 ----------------------------------------------------------
 */
 type StringValue struct {
-	Value string
+	Value   string
+	Mutable bool
 }
 
 func (s StringValue) GetStr() string     { return s.Value }
@@ -27,14 +28,32 @@ func (s StringValue) GetType() string {
 	return "StringValue"
 }
 
-func (s StringValue) GetProp(name string) RuntimeValue {
-	props := map[string]RuntimeValue{}
+func (s StringValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 
-	props = map[string]RuntimeValue{
+	props := map[string]RuntimeValue{
 
 		"len": NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
 				return NumberValue{Value: float64(len(s.GetStr()))}
+			},
+		},
+		"makeMutable": NativeFunctionValue{
+			Value: func(args []RuntimeValue) RuntimeValue {
+				val := (*v).(*StringValue)
+				val.Mutable = true
+				return BooleanValue{Value: true}
+			},
+		},
+		"set": NativeFunctionValue{
+			Value: func(args []RuntimeValue) RuntimeValue {
+				val := (*v).(*StringValue)
+
+				if !val.Mutable {
+					return ErrorValue{Value: "String is immutable"}
+				}
+
+				val.Value = args[0].GetStr()
+				return BooleanValue{Value: true}
 			},
 		},
 		"is": NativeFunctionValue{

@@ -94,19 +94,22 @@ func ReadUserInput(args []values.RuntimeValue) values.RuntimeValue {
 	return values.StringValue{Value: line}
 }
 
-func PrintStdOut(args []values.RuntimeValue) values.RuntimeValue {
+func PrintValues(args []values.RuntimeValue, verboseStrings bool) {
 
 	for _, arg := range args {
 		if arg.GetType() == "ArrayValue" {
 			fmt.Print("[ ")
-			for _, item := range arg.(values.ArrayValue).Value {
-				PrintStdOut([]values.RuntimeValue{item})
+			for _, item := range arg.(*values.ArrayValue).Value {
+				PrintValues([]values.RuntimeValue{item}, true)
 				fmt.Print(", ")
 			}
 			fmt.Print("] ")
-		}
-		if arg.GetType() == "StringValue" {
-			fmt.Print(arg.GetStr())
+		} else if arg.GetType() == "StringValue" {
+			if verboseStrings {
+				fmt.Print("'" + arg.GetStr() + "'")
+			} else {
+				fmt.Print(arg.GetStr())
+			}
 		} else if arg.GetType() == "NumberValue" {
 			fmt.Print(arg.GetNumber())
 		} else if arg.GetType() == "BooleanValue" {
@@ -114,9 +117,9 @@ func PrintStdOut(args []values.RuntimeValue) values.RuntimeValue {
 		} else if arg.GetType() == "DictionaryValue" {
 			fmt.Print("{ ")
 			for key, value := range arg.(values.DictionaryValue).Value {
-				PrintStdOut([]values.RuntimeValue{values.StringValue{Value: key}})
+				PrintValues([]values.RuntimeValue{values.StringValue{Value: key}}, true)
 				fmt.Print(": ")
-				PrintStdOut([]values.RuntimeValue{value})
+				PrintValues([]values.RuntimeValue{value}, true)
 				fmt.Print(", ")
 			}
 			fmt.Print("}")
@@ -124,6 +127,11 @@ func PrintStdOut(args []values.RuntimeValue) values.RuntimeValue {
 			fmt.Print(arg.GetStr())
 		}
 	}
+
+}
+
+func PrintStdOut(args []values.RuntimeValue) values.RuntimeValue {
+	PrintValues(args, false)
 	print("\n")
 
 	return values.BooleanValue{Value: true}
@@ -139,6 +147,6 @@ func GetArguments(args []values.RuntimeValue) values.RuntimeValue {
 		vals.Value = append(vals.Value, values.StringValue{Value: arg})
 	}
 
-	return vals
+	return &vals
 
 }

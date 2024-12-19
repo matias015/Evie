@@ -10,7 +10,7 @@ type RuntimeValue interface {
 	GetStr() string
 	GetNumber() float64
 	GetBool() bool
-	GetProp(string) RuntimeValue
+	GetProp(*RuntimeValue, string) RuntimeValue
 }
 
 // This is kinda a mess
@@ -39,16 +39,12 @@ func (s NumberValue) GetBool() bool {
 	return false
 }
 
-func (s NumberValue) GetProp(name string) RuntimeValue {
+func (s NumberValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 	props := map[string]RuntimeValue{}
 
-	props = map[string]RuntimeValue{
-		"toString": NativeFunctionValue{
-			Value: func(args []RuntimeValue) RuntimeValue {
-				return StringValue{Value: s.GetStr()}
-			},
-		},
-	}
+	props["isInteger"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+		return BooleanValue{Value: float64(int64(s.Value)) == s.Value}
+	}}
 
 	return props[name]
 }
@@ -85,7 +81,7 @@ func (s BooleanValue) GetBool() bool {
 	return s.Value
 }
 
-func (s BooleanValue) GetProp(name string) RuntimeValue {
+func (s BooleanValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 	return BooleanValue{Value: s.Value}
 }
 
@@ -114,7 +110,7 @@ func (s NativeFunctionValue) GetBool() bool {
 	return true
 }
 
-func (s NativeFunctionValue) GetProp(name string) RuntimeValue {
+func (s NativeFunctionValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 	return NativeFunctionValue{Value: s.Value}
 }
 
@@ -146,75 +142,8 @@ func (s FunctionValue) GetBool() bool {
 	return true
 }
 
-func (s FunctionValue) GetProp(name string) RuntimeValue {
-	return FunctionValue{Body: s.Body, Parameters: s.Parameters}
-}
-
-/*
-----------------------------------------------------------
---- FUCNTION
-----------------------------------------------------------
-*/
-
-type ArrayValue struct {
-	Value []RuntimeValue
-}
-
-func (a ArrayValue) GetNumber() float64 {
-	return float64(len(a.Value))
-}
-func (a ArrayValue) GetType() string {
-	return "ArrayValue"
-}
-
-func (a ArrayValue) GetStr() string {
-	return "array"
-}
-func (a ArrayValue) GetBool() bool {
-	if len(a.Value) > 0 {
-		return true
-	} else {
-		return false
-	}
-}
-
-func (a ArrayValue) GetProp(name string) RuntimeValue {
-	props := map[string]RuntimeValue{}
-
-	props = map[string]RuntimeValue{
-		"slice": NativeFunctionValue{
-			Value: func(args []RuntimeValue) RuntimeValue {
-				length := len(a.Value)
-				if len(args) == 2 {
-					from := int(args[0].GetNumber())
-					to := int(args[1].GetNumber())
-					if to < 0 {
-						to = length + to
-					}
-					if from < 0 {
-						from = length + from
-					}
-					if from > length || to > length {
-						return ErrorValue{Value: "Index out of range [" + strconv.FormatFloat(args[0].GetNumber(), 'f', -1, 64) + ":" + strconv.FormatFloat(args[1].GetNumber(), 'f', -1, 64) + "]"}
-					}
-					return ArrayValue{Value: a.Value[from:to]}
-				} else if len(args) == 1 {
-					from := int(args[0].GetNumber())
-					if from < 0 {
-						from = length + from
-					}
-					if from > length {
-						return ErrorValue{Value: "Index out of range [" + strconv.FormatFloat(args[0].GetNumber(), 'f', -1, 64) + "]"}
-					}
-					return ArrayValue{Value: a.Value[from:]}
-				} else {
-					return ArrayValue{Value: []RuntimeValue{}}
-				}
-			},
-		},
-	}
-
-	return props[name]
+func (s FunctionValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
+	return nil
 }
 
 /*
@@ -242,8 +171,8 @@ func (a StructValue) GetBool() bool {
 	return true
 }
 
-func (a StructValue) GetProp(name string) RuntimeValue {
-	return StructValue{Properties: a.Properties}
+func (a StructValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
+	return nil
 }
 
 /*
@@ -270,8 +199,36 @@ func (a DictionaryValue) GetBool() bool {
 	return true
 }
 
-func (a DictionaryValue) GetProp(name string) RuntimeValue {
-	return DictionaryValue{Value: a.Value}
+func (a DictionaryValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
+	props := map[string]RuntimeValue{}
+
+	props = map[string]RuntimeValue{
+
+		"add": NativeFunctionValue{
+			Value: func(args []RuntimeValue) RuntimeValue {
+				key := args[0].GetStr()
+				value := args[1]
+				a.Value[key] = value
+				return BooleanValue{Value: true}
+			},
+		},
+		"remove": NativeFunctionValue{
+			Value: func(args []RuntimeValue) RuntimeValue {
+				key := args[0].GetStr()
+				delete(a.Value, key)
+				return BooleanValue{Value: true}
+			},
+		},
+		"has": NativeFunctionValue{
+			Value: func(args []RuntimeValue) RuntimeValue {
+				key := args[0].GetStr()
+				_, ok := a.Value[key]
+				return BooleanValue{Value: ok}
+			},
+		},
+	}
+
+	return props[name]
 }
 
 /*
@@ -299,7 +256,7 @@ func (a ObjectValue) GetBool() bool {
 	return true
 }
 
-func (a ObjectValue) GetProp(prop string) RuntimeValue {
+func (a ObjectValue) GetProp(v *RuntimeValue, prop string) RuntimeValue {
 	propValue := a.Value[prop]
 
 	if propValue == nil {
@@ -340,7 +297,7 @@ func (s SignalValue) GetBool() bool {
 	return true
 }
 
-func (s SignalValue) GetProp(name string) RuntimeValue {
+func (s SignalValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 	return SignalValue{Type: s.Type, Value: s.Value, Env: s.Env}
 }
 
@@ -362,7 +319,7 @@ func (s ErrorValue) GetBool() bool {
 	return true
 }
 
-func (s ErrorValue) GetProp(name string) RuntimeValue {
+func (s ErrorValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 	return ErrorValue{Value: s.Value}
 }
 
@@ -384,7 +341,7 @@ func (s NamespaceValue) GetBool() bool {
 	return true
 }
 
-func (s NamespaceValue) GetProp(name string) RuntimeValue {
+func (s NamespaceValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 	return s.Value[name]
 }
 
@@ -406,6 +363,6 @@ func (s NothingValue) GetBool() bool {
 	return false
 }
 
-func (s NothingValue) GetProp(name string) RuntimeValue {
+func (s NothingValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 	return NothingValue{}
 }

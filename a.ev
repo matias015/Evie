@@ -1,9 +1,0 @@
-
-struct Person{
-	name,
-	age
-}
-
-Person -> hello(){
-	print(2)
-}

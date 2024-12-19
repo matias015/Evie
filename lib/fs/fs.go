@@ -4,13 +4,15 @@ import (
 	"bufio"
 	environment "evie/env"
 	"evie/values"
+	"io"
 	"log"
 	"os"
 )
 
 type FileValue struct {
-	Value  *os.File
-	Reader *bufio.Reader
+	Value   *os.File
+	Scanner *bufio.Scanner
+	Closed  bool
 }
 
 func (s FileValue) SetValue(value values.RuntimeValue) {}
@@ -24,23 +26,35 @@ func (s FileValue) GetType() string {
 	return "FileValue"
 }
 
-func (s FileValue) GetProp(name string) values.RuntimeValue {
+func (s *FileValue) GetProp(v *values.RuntimeValue, name string) values.RuntimeValue {
 	props := map[string]values.RuntimeValue{}
 
 	props = map[string]values.RuntimeValue{
 		"readLine": values.NativeFunctionValue{
 			Value: func(args []values.RuntimeValue) values.RuntimeValue {
 
-				t, err := s.Reader.ReadString('\n')
-				if err != nil {
-					return values.StringValue{Value: err.Error()}
+				if s.Closed {
+					return values.ErrorValue{Value: "File is closed"}
 				}
-				return values.StringValue{Value: t[:len(t)-1]}
+
+				success := s.Scanner.Scan()
+				if !success {
+					if err := s.Scanner.Err(); err != nil {
+						return values.ErrorValue{Value: err.Error()}
+					} else {
+						return values.StringValue{Value: "EOF"}
+					}
+				}
+				return values.StringValue{Value: s.Scanner.Text()}
 			},
 		},
 		"appendLine": values.NativeFunctionValue{
 			Value: func(args []values.RuntimeValue) values.RuntimeValue {
-				s.Value.WriteString(args[0].GetStr() + "\n")
+				_, err := s.Value.WriteString(args[0].GetStr() + "\n")
+
+				if err != nil {
+					return values.ErrorValue{Value: err.Error()}
+				}
 				return values.BooleanValue{Value: true}
 			},
 		},
@@ -52,7 +66,20 @@ func (s FileValue) GetProp(name string) values.RuntimeValue {
 		},
 		"close": values.NativeFunctionValue{
 			Value: func(args []values.RuntimeValue) values.RuntimeValue {
+				s.Closed = true
 				s.Value.Close()
+				return values.BooleanValue{Value: true}
+			},
+		},
+		"seek": values.NativeFunctionValue{
+			Value: func(args []values.RuntimeValue) values.RuntimeValue {
+				// arg := args[0]
+				_, err := s.Value.Seek(0, io.SeekStart)
+
+				if err != nil {
+					return values.ErrorValue{Value: err.Error()}
+				}
+
 				return values.BooleanValue{Value: true}
 			},
 		},
@@ -77,8 +104,11 @@ func Load(env *environment.Environment) {
 
 	structValue.Methods = make(map[string]values.RuntimeValue)
 
-	structValue.Methods["readAll"] = values.NativeFunctionValue{Value: ReadFile}
+	structValue.Methods["read"] = values.NativeFunctionValue{Value: ReadFile}
 	structValue.Methods["open"] = values.NativeFunctionValue{Value: OpenFile}
+	structValue.Methods["exists"] = values.NativeFunctionValue{Value: FileExists}
+	structValue.Methods["remove"] = values.NativeFunctionValue{Value: RemoveFile}
+
 	obj := values.ObjectValue{}
 	obj.Struct = structValue
 	obj.Value = make(map[string]values.RuntimeValue)
@@ -109,7 +139,25 @@ func OpenFile(args []values.RuntimeValue) values.RuntimeValue {
 	f := FileValue{}
 
 	f.Value = file
-	f.Reader = bufio.NewReader(file)
+	f.Scanner = bufio.NewScanner(file)
+	f.Closed = false
 
-	return f
+	return &f
+}
+
+func FileExists(args []values.RuntimeValue) values.RuntimeValue {
+	arg := args[0]
+	_, err := os.Stat(arg.GetStr())
+	if err != nil {
+		return values.BooleanValue{Value: false}
+	}
+	return values.BooleanValue{Value: true}
+}
+
+func RemoveFile(args []values.RuntimeValue) values.RuntimeValue {
+	err := os.Remove(args[0].GetStr())
+	if err != nil {
+		return values.ErrorValue{Value: err.Error()}
+	}
+	return values.BooleanValue{Value: true}
 }
