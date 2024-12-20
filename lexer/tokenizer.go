@@ -39,7 +39,8 @@ func Tokenize(input string) []Token {
 		}
 
 		// If it is comment
-		if token == '#' {
+		if token == '/' && t.GetNext() == '/' {
+			t.Eat()
 			t.Eat()
 			for {
 				if t.Get() == '\r' && t.GetNext() == '\n' {

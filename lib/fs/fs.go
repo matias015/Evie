@@ -4,7 +4,6 @@ import (
 	"bufio"
 	environment "evie/env"
 	"evie/values"
-	"io"
 	"log"
 	"os"
 )
@@ -73,8 +72,8 @@ func (s *FileValue) GetProp(v *values.RuntimeValue, name string) values.RuntimeV
 		},
 		"seek": values.NativeFunctionValue{
 			Value: func(args []values.RuntimeValue) values.RuntimeValue {
-				// arg := args[0]
-				_, err := s.Value.Seek(0, io.SeekStart)
+				arg := args[0]
+				_, err := s.Value.Seek(0, int(arg.GetNumber()))
 
 				if err != nil {
 					return values.ErrorValue{Value: err.Error()}

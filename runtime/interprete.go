@@ -187,9 +187,13 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 
 		ret := e.EvaluateStmt(stmt, newenv)
 
+		if ret != nil && ret.GetType() == "return" {
+			return ret
+		}
+
 		if IsError(ret) {
 
-			newenv.Variables["error"] = ret
+			newenv.Variables["error"] = values.CapturedErrorValue{Value: ret.(values.ErrorValue)}
 
 			// CATCH BODY
 			for _, cstmt := range catch {
@@ -213,26 +217,36 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 
 // RETURN STMT
 func (e Evaluator) EvaluateReturnNode(node parser.ReturnNode, env *environment.Environment) values.RuntimeValue {
-	return values.SignalValue{
-		Type:  "return",
-		Value: node.Right,
-		Env:   env,
+	ret := values.SignalValue{
+		Type: "return",
+		Exp:  node.Right,
+		Env:  env,
 	}
+
+	eval := e.EvaluateExpression(ret.Exp, ret.Env.(*environment.Environment))
+	// litter.Dump(eval)
+	if eval.GetType() == "ErrorValue" {
+		return eval
+	}
+
+	ret.Value = eval
+
+	return ret
 }
 
 // CONTINUE
 func (e Evaluator) EvaluateContinueNode(node parser.ContinueNode, env *environment.Environment) values.RuntimeValue {
 	return values.SignalValue{
-		Type:  "continue",
-		Value: nil,
+		Type: "continue",
+		Exp:  nil,
 	}
 }
 
 // BREAk
 func (e Evaluator) EvaluateBreakNode(node parser.BreakNode, env *environment.Environment) values.RuntimeValue {
 	return values.SignalValue{
-		Type:  "break",
-		Value: nil,
+		Type: "break",
+		Exp:  nil,
 	}
 }
 
@@ -350,6 +364,7 @@ func (e Evaluator) EvaluateFunctionDeclarationStmt(node parser.FunctionDeclarati
 	fn.Parameters = node.Parameters
 	fn.Struct = ""
 	fn.Environment = env
+	fn.Evaluator = e
 
 	_, err := env.DeclareVar(node.Name, fn)
 
@@ -468,46 +483,102 @@ func (e *Evaluator) EvaluateExpression(node parser.Exp, env *environment.Environ
 		return nil
 	}
 
-	if node.ExpType() == "BinaryExpNode" {
-		return e.EvaluateBinaryExpression(node.(parser.BinaryExpNode), env)
-	} else if node.ExpType() == "TernaryExpNode" {
-		return e.EvaluateTernaryExpression(node.(parser.TernaryExpNode), env)
-	} else if node.ExpType() == "CallExpNode" {
-		return e.EvaluateCallExpression(node.(parser.CallExpNode), env)
-	} else if node.ExpType() == "IdentifierNode" {
-		lookup, err := env.GetVar(node.(parser.IdentifierNode).Value, node.(parser.IdentifierNode).Line)
+	switch n := node.(type) {
+
+	case parser.BinaryExpNode:
+		return e.EvaluateBinaryExpression(n, env)
+	case parser.AnonFunctionDeclarationNode:
+		return e.EvaluateAnonymousFunctionExpression(n, env)
+	case parser.TernaryExpNode:
+		return e.EvaluateTernaryExpression(n, env)
+	case parser.CallExpNode:
+		return e.EvaluateCallExpression(n, env)
+	case parser.IdentifierNode:
+		lookup, err := env.GetVar(n.Value, n.Line)
 		if err != nil {
-			return e.Panic(err.Error(), node.(parser.IdentifierNode).Line, env)
+			return e.Panic(err.Error(), n.Line, env)
 		}
 		return lookup
-	} else if node.ExpType() == "UnaryExpNode" {
-		return e.EvaluateUnaryExpression(node.(parser.UnaryExpNode), env)
-	} else if node.ExpType() == "NumberNode" {
-		parsedNumber, _ := strconv.ParseFloat(node.(parser.NumberNode).Value, 2)
+	case parser.UnaryExpNode:
+		return e.EvaluateUnaryExpression(n, env)
+	case parser.NumberNode:
+		parsedNumber, _ := strconv.ParseFloat(n.Value, 2)
 		return values.NumberValue{Value: parsedNumber}
-	} else if node.ExpType() == "StringNode" {
-		return &values.StringValue{Value: node.(parser.StringNode).Value, Mutable: false}
-	} else if node.ExpType() == "NothingNode" {
-		return values.NothingValue{}
-	} else if node.ExpType() == "IndexAccessExpNode" {
-		return e.EvaluateIndexAccessExpression(node.(parser.IndexAccessExpNode), env)
-	} else if node.ExpType() == "BooleanNode" {
-		return values.BooleanValue{Value: node.(parser.BooleanNode).Value}
-	} else if node.ExpType() == "AssignmentNode" {
-		return e.EvaluateAssignmentExpression(node.(parser.AssignmentNode), env)
-	} else if node.ExpType() == "SliceExpNode" {
-		return e.EvaluateSliceExpression(node.(parser.SliceExpNode), env)
-	} else if node.ExpType() == "MemberExpNode" {
-		return e.EvaluateMemberExpression(node.(parser.MemberExpNode), env)
-	} else if node.ExpType() == "ObjectInitExpNode" {
-		return e.EvaluateObjInitializeExpression(node.(parser.ObjectInitExpNode), env)
-	} else if node.ExpType() == "ArrayExpNode" {
-		return e.EvaluateArrayExpression(node.(parser.ArrayExpNode), env)
-	} else if node.ExpType() == "DictionaryExpNode" {
-		return e.EvaluateDictionaryExpression(node.(parser.DictionaryExpNode), env)
-	} else {
-		return nil
+	case parser.StringNode:
+		return values.StringValue{Value: n.Value}
+	case parser.IndexAccessExpNode:
+		return e.EvaluateIndexAccessExpression(n, env)
+	case parser.BooleanNode:
+		return values.BooleanValue{Value: n.Value}
+	case parser.AssignmentNode:
+		return e.EvaluateAssignmentExpression(n, env)
+	case parser.SliceExpNode:
+		return e.EvaluateSliceExpression(n, env)
+	case parser.MemberExpNode:
+		return e.EvaluateMemberExpression(n, env)
+	case parser.ObjectInitExpNode:
+		return e.EvaluateObjInitializeExpression(n, env)
+	case parser.ArrayExpNode:
+		return e.EvaluateArrayExpression(n, env)
+	case parser.DictionaryExpNode:
+		return e.EvaluateDictionaryExpression(n, env)
+	default:
+		return values.ErrorValue{Value: "Unknown expression type: " + node.ExpType()}
 	}
+
+	// if node.ExpType() == "BinaryExpNode" {
+	// 	return e.EvaluateBinaryExpression(node.(parser.BinaryExpNode), env)
+	// } else if node.ExpType() == "TernaryExpNode" {
+	// 	return e.EvaluateTernaryExpression(node.(parser.TernaryExpNode), env)
+	// } else if node.ExpType() == "CallExpNode" {
+	// 	return e.EvaluateCallExpression(node.(parser.CallExpNode), env)
+	// } else if node.ExpType() == "IdentifierNode" {
+	// 	lookup, err := env.GetVar(node.(parser.IdentifierNode).Value, node.(parser.IdentifierNode).Line)
+	// 	if err != nil {
+	// 		return e.Panic(err.Error(), node.(parser.IdentifierNode).Line, env)
+	// 	}
+	// 	return lookup
+	// } else if node.ExpType() == "UnaryExpNode" {
+	// 	return e.EvaluateUnaryExpression(node.(parser.UnaryExpNode), env)
+	// } else if node.ExpType() == "NumberNode" {
+	// 	parsedNumber, _ := strconv.ParseFloat(node.(parser.NumberNode).Value, 2)
+	// 	return values.NumberValue{Value: parsedNumber}
+	// } else if node.ExpType() == "StringNode" {
+	// 	return &values.StringValue{Value: node.(parser.StringNode).Value, Mutable: false}
+	// } else if node.ExpType() == "NothingNode" {
+	// 	return values.NothingValue{}
+	// } else if node.ExpType() == "IndexAccessExpNode" {
+	// 	return e.EvaluateIndexAccessExpression(node.(parser.IndexAccessExpNode), env)
+	// } else if node.ExpType() == "BooleanNode" {
+	// 	return values.BooleanValue{Value: node.(parser.BooleanNode).Value}
+	// } else if node.ExpType() == "AssignmentNode" {
+	// 	return e.EvaluateAssignmentExpression(node.(parser.AssignmentNode), env)
+	// } else if node.ExpType() == "SliceExpNode" {
+	// 	return e.EvaluateSliceExpression(node.(parser.SliceExpNode), env)
+	// } else if node.ExpType() == "MemberExpNode" {
+	// 	return e.EvaluateMemberExpression(node.(parser.MemberExpNode), env)
+	// } else if node.ExpType() == "ObjectInitExpNode" {
+	// 	return e.EvaluateObjInitializeExpression(node.(parser.ObjectInitExpNode), env)
+	// } else if node.ExpType() == "ArrayExpNode" {
+	// 	return e.EvaluateArrayExpression(node.(parser.ArrayExpNode), env)
+	// } else if node.ExpType() == "DictionaryExpNode" {
+	// 	return e.EvaluateDictionaryExpression(node.(parser.DictionaryExpNode), env)
+	// } else {
+	// 	return nil
+	// }
+}
+
+func (e Evaluator) EvaluateAnonymousFunctionExpression(node parser.AnonFunctionDeclarationNode, env *environment.Environment) values.RuntimeValue {
+
+	fn := values.FunctionValue{}
+
+	fn.Body = node.Body
+	fn.Parameters = node.Parameters
+	fn.Struct = ""
+	fn.Environment = env
+	fn.Evaluator = e
+
+	return fn
 }
 
 func (e Evaluator) EvaluateTernaryExpression(node parser.TernaryExpNode, env *environment.Environment) values.RuntimeValue {
@@ -613,7 +684,7 @@ func (e Evaluator) EvaluateMemberExpression(node parser.MemberExpNode, env *envi
 	fn := varValue.GetProp(&varValue, node.Member.Value)
 
 	if fn == nil {
-		return e.Panic("Unknown member "+node.Member.Value, node.Line, env)
+		return e.Panic(varValue.GetType()+" has not member "+node.Member.Value, node.Line, env)
 	}
 
 	return fn
@@ -830,7 +901,7 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 			signal, isSignal := result.(values.SignalValue)
 
 			if isSignal && signal.Type == "return" {
-				exp := e.EvaluateExpression(signal.Value, signal.Env.(*environment.Environment))
+				exp := e.EvaluateExpression(signal.Exp, signal.Env.(*environment.Environment))
 
 				if exp.GetType() == "ErrorValue" {
 
@@ -1014,4 +1085,33 @@ func (e Evaluator) EvaluateUnaryExpression(node parser.UnaryExpNode, env *enviro
 	} else {
 		return nil
 	}
+}
+
+func (e Evaluator) ExecuteCallback(fn interface{}, env interface{}) interface{} {
+
+	fnValue := fn.(values.FunctionValue)
+
+	environment := env.(*environment.Environment)
+
+	var result values.RuntimeValue
+	e.CallStack = append(e.CallStack, environment.ModuleName)
+	for _, stmt := range fnValue.Body {
+		result = e.EvaluateStmt(stmt, environment)
+
+		if result != nil && result.GetType() == "ErrorValue" {
+			return result
+		}
+
+		signal, isSignal := result.(values.SignalValue)
+
+		if isSignal && signal.Type == "return" {
+
+			e.CallStackExit()
+
+			return signal.Value
+		}
+
+	}
+	e.CallStackExit()
+	return nil
 }

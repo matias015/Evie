@@ -1,6 +1,7 @@
 package values
 
 import (
+	"evie/core"
 	"evie/parser"
 	"strconv"
 )
@@ -126,6 +127,7 @@ type FunctionValue struct {
 	Body         []parser.Stmt
 	Parameters   []string
 	Environment  interface{}
+	Evaluator    core.Evaluator
 }
 
 func (s FunctionValue) GetNumber() float64 {
@@ -279,8 +281,9 @@ func (a ObjectValue) GetProp(v *RuntimeValue, prop string) RuntimeValue {
 // was declared inside other blocks like if, for, etc.
 type SignalValue struct {
 	Type  string
-	Value parser.Exp
+	Exp   parser.Exp
 	Env   interface{}
+	Value RuntimeValue
 }
 
 func (s SignalValue) GetNumber() float64 {
@@ -298,7 +301,7 @@ func (s SignalValue) GetBool() bool {
 }
 
 func (s SignalValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
-	return SignalValue{Type: s.Type, Value: s.Value, Env: s.Env}
+	return SignalValue{Type: s.Type, Exp: s.Exp, Env: s.Env}
 }
 
 type ErrorValue struct {
@@ -321,6 +324,28 @@ func (s ErrorValue) GetBool() bool {
 
 func (s ErrorValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 	return ErrorValue{Value: s.Value}
+}
+
+type CapturedErrorValue struct {
+	Value ErrorValue
+}
+
+func (s CapturedErrorValue) GetNumber() float64 {
+	return 0
+}
+func (s CapturedErrorValue) GetType() string {
+	return "CapturedErrorValue"
+}
+
+func (s CapturedErrorValue) GetStr() string {
+	return s.Value.Value
+}
+func (s CapturedErrorValue) GetBool() bool {
+	return false
+}
+
+func (s CapturedErrorValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
+	return ErrorValue{Value: s.Value.Value}
 }
 
 type NamespaceValue struct {
@@ -364,5 +389,5 @@ func (s NothingValue) GetBool() bool {
 }
 
 func (s NothingValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
-	return NothingValue{}
+	return nil
 }

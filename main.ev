@@ -1,2 +1,18 @@
 
-print("This is a test!")
+import http
+
+struct Person{
+	name,
+	age
+}
+
+http.route("/", fn(){
+	var p = Person{}
+	p.name = "pedro"
+	p.age = 22
+	return p.name
+})
+
+http.listen("8080")
+
+litter(server)

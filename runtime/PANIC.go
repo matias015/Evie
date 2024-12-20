@@ -28,5 +28,8 @@ func (e *Evaluator) CallStackEntry(mod string, line int) {
 }
 
 func (e *Evaluator) CallStackExit() {
+	if len(e.CallStack) == 0 {
+		return
+	}
 	e.CallStack = e.CallStack[1:]
 }

@@ -66,7 +66,7 @@ func (p *Parser) ParseStmt() Stmt {
 		return p.ParseImportStmt()
 	} else if token.Kind == "loop" {
 		return p.ParseLoopStmt()
-	} else if token.Kind == "fn" {
+	} else if token.Kind == "fn" && p.t.GetNext().Kind == "identifier" {
 		p.t.Eat()
 		return p.ParseFunctionDeclaration()
 	} else if token.Kind == "for" {
@@ -333,8 +333,14 @@ func (p *Parser) ParseFunctionDeclaration() FunctionDeclarationNode {
 
 	var node FunctionDeclarationNode = FunctionDeclarationNode{}
 	node.Body = make([]Stmt, 0)
-	node.Name = p.t.Get().Lexeme
-	node.Line = p.t.Eat().Line
+
+	if p.t.Get().Kind == "identifier" {
+		node.Name = p.t.Get().Lexeme
+		node.Line = p.t.Eat().Line
+	} else if p.t.Get().Kind == "lpar" {
+		node.Name = ""
+		node.Line = p.t.Get().Line
+	}
 
 	args := p.ParseArgs()
 
@@ -511,7 +517,57 @@ func (p *Parser) ParseVarDeclaration() Stmt {
 
 func (p *Parser) ParseExp() Exp {
 
-	return p.ParseAssignmentExp()
+	return p.ParseAnonFnExp()
+
+}
+
+func (p *Parser) ParseAnonFnExp() Exp {
+
+	if p.t.Get().Lexeme != "fn" {
+		return p.ParseAssignmentExp()
+	}
+
+	p.t.Eat()
+
+	// litter.Dump(p.t.Get())
+	// os.Exit(1)
+
+	var node AnonFunctionDeclarationNode = AnonFunctionDeclarationNode{}
+	node.Body = make([]Stmt, 0)
+
+	args := p.ParseArgs()
+
+	for _, arg := range args {
+		node.Parameters = append(node.Parameters, arg.(IdentifierNode).Value)
+	}
+
+	p.t.Eat() // open brace
+
+	for {
+
+		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+			break
+		}
+
+		if p.t.Get().Kind == "eol" {
+			p.t.Eat()
+			continue
+		}
+		node.Body = append(node.Body, p.ParseStmt())
+
+	}
+
+	if p.t.Get().Kind == "eol" {
+		p.t.Eat()
+	}
+
+	if p.t.Get().Kind != "rbrace" {
+		Stop("Expected '}' in function declaration in line " + fmt.Sprint(p.t.Get().Line))
+	} else {
+		p.t.Eat()
+	}
+
+	return node
 
 }
 

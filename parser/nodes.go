@@ -174,6 +174,14 @@ type FunctionDeclarationNode struct {
 
 func (n FunctionDeclarationNode) StmtType() string { return "FunctionDeclarationNode" }
 
+type AnonFunctionDeclarationNode struct {
+	Body       []Stmt
+	Parameters []string
+	Line       int
+}
+
+func (n AnonFunctionDeclarationNode) ExpType() string { return "FunctionDeclarationNode" }
+
 type StructDeclarationNode struct {
 	Name       string
 	Properties []string
