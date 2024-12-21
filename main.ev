@@ -1,18 +1,23 @@
 
-import http
-
-struct Person{
-	name,
-	age
+struct DB{
+	conn
 }
 
-http.route("/", fn(){
-	var p = Person{}
-	p.name = "pedro"
-	p.age = 22
-	return p.name
-})
+DB -> connect(){
+	print("Connecting")
+}
 
-http.listen("8080")
+DB -> close(){
+	print("Closing")
+}
 
-litter(server)
+DB -> query(){
+	this.connect()
+	print("Execute query")
+	this.close()
+}
+
+
+var db = DB{}
+
+db.query()

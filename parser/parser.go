@@ -529,9 +529,6 @@ func (p *Parser) ParseAnonFnExp() Exp {
 
 	p.t.Eat()
 
-	// litter.Dump(p.t.Get())
-	// os.Exit(1)
-
 	var node AnonFunctionDeclarationNode = AnonFunctionDeclarationNode{}
 	node.Body = make([]Stmt, 0)
 

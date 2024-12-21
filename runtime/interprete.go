@@ -94,12 +94,12 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 		.			import main
 		.
 		.	Here utils wants to imports main, so before we do that, we check in the import map
-		.	which modules were imported by main, if utils module is there, the utils module will say:
-		.	Wait! i cant import main, because main already import me!
-		.	So we avoid circular imports
+		.	which modules were imported by main, if utils module is there, the utils module will say circular
 		.
 		.
 		*/
+		// TODO: Detect circular imports in import chain
+		// ex: a imports b, b imports c, and c imports a
 		importedByModule, _ := env.ImportMap[node.Path]
 
 		for _, module := range importedByModule {
@@ -526,46 +526,6 @@ func (e *Evaluator) EvaluateExpression(node parser.Exp, env *environment.Environ
 		return values.ErrorValue{Value: "Unknown expression type: " + node.ExpType()}
 	}
 
-	// if node.ExpType() == "BinaryExpNode" {
-	// 	return e.EvaluateBinaryExpression(node.(parser.BinaryExpNode), env)
-	// } else if node.ExpType() == "TernaryExpNode" {
-	// 	return e.EvaluateTernaryExpression(node.(parser.TernaryExpNode), env)
-	// } else if node.ExpType() == "CallExpNode" {
-	// 	return e.EvaluateCallExpression(node.(parser.CallExpNode), env)
-	// } else if node.ExpType() == "IdentifierNode" {
-	// 	lookup, err := env.GetVar(node.(parser.IdentifierNode).Value, node.(parser.IdentifierNode).Line)
-	// 	if err != nil {
-	// 		return e.Panic(err.Error(), node.(parser.IdentifierNode).Line, env)
-	// 	}
-	// 	return lookup
-	// } else if node.ExpType() == "UnaryExpNode" {
-	// 	return e.EvaluateUnaryExpression(node.(parser.UnaryExpNode), env)
-	// } else if node.ExpType() == "NumberNode" {
-	// 	parsedNumber, _ := strconv.ParseFloat(node.(parser.NumberNode).Value, 2)
-	// 	return values.NumberValue{Value: parsedNumber}
-	// } else if node.ExpType() == "StringNode" {
-	// 	return &values.StringValue{Value: node.(parser.StringNode).Value, Mutable: false}
-	// } else if node.ExpType() == "NothingNode" {
-	// 	return values.NothingValue{}
-	// } else if node.ExpType() == "IndexAccessExpNode" {
-	// 	return e.EvaluateIndexAccessExpression(node.(parser.IndexAccessExpNode), env)
-	// } else if node.ExpType() == "BooleanNode" {
-	// 	return values.BooleanValue{Value: node.(parser.BooleanNode).Value}
-	// } else if node.ExpType() == "AssignmentNode" {
-	// 	return e.EvaluateAssignmentExpression(node.(parser.AssignmentNode), env)
-	// } else if node.ExpType() == "SliceExpNode" {
-	// 	return e.EvaluateSliceExpression(node.(parser.SliceExpNode), env)
-	// } else if node.ExpType() == "MemberExpNode" {
-	// 	return e.EvaluateMemberExpression(node.(parser.MemberExpNode), env)
-	// } else if node.ExpType() == "ObjectInitExpNode" {
-	// 	return e.EvaluateObjInitializeExpression(node.(parser.ObjectInitExpNode), env)
-	// } else if node.ExpType() == "ArrayExpNode" {
-	// 	return e.EvaluateArrayExpression(node.(parser.ArrayExpNode), env)
-	// } else if node.ExpType() == "DictionaryExpNode" {
-	// 	return e.EvaluateDictionaryExpression(node.(parser.DictionaryExpNode), env)
-	// } else {
-	// 	return nil
-	// }
 }
 
 func (e Evaluator) EvaluateAnonymousFunctionExpression(node parser.AnonFunctionDeclarationNode, env *environment.Environment) values.RuntimeValue {
@@ -652,6 +612,13 @@ func (e Evaluator) EvaluateStructMethodExpression(node parser.StructMethodDeclar
 
 	if structLup == nil || structLup.GetType() != "StructValue" {
 		e.Panic("Expected struct, got "+structLup.GetType(), node.Line, env)
+	}
+
+	// Check if method already exists
+	_, exists := structLup.(values.StructValue).Methods[node.Function.Name]
+
+	if exists {
+		return e.Panic("Method '"+node.Function.Name+"' already exists in struct '"+structName+"'", node.Line, env)
 	}
 
 	// Create function value
@@ -1087,16 +1054,37 @@ func (e Evaluator) EvaluateUnaryExpression(node parser.UnaryExpNode, env *enviro
 	}
 }
 
-func (e Evaluator) ExecuteCallback(fn interface{}, env interface{}) interface{} {
+func (e Evaluator) ExecuteCallback(fn interface{}, env interface{}, args []interface{}) interface{} {
 
 	fnValue := fn.(values.FunctionValue)
 
-	environment := env.(*environment.Environment)
+	parentEnvironment := env.(*environment.Environment)
+
+	childEnvironment := environment.NewEnvironment(parentEnvironment)
+
+	for i, paramName := range fnValue.Parameters {
+		if i+1 < len(args) {
+			break
+		}
+
+		switch val := args[i].(type) {
+		case values.ObjectValue:
+			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+		case values.NumberValue:
+			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+		case values.StringValue:
+			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+		case values.BooleanValue:
+			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+		case values.ArrayValue:
+			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+		}
+	}
 
 	var result values.RuntimeValue
-	e.CallStack = append(e.CallStack, environment.ModuleName)
+	e.CallStack = append(e.CallStack, childEnvironment.ModuleName)
 	for _, stmt := range fnValue.Body {
-		result = e.EvaluateStmt(stmt, environment)
+		result = e.EvaluateStmt(stmt, childEnvironment)
 
 		if result != nil && result.GetType() == "ErrorValue" {
 			return result
