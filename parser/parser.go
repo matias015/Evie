@@ -100,6 +100,9 @@ func (p *Parser) ParseImportStmt() ImportNode {
 
 	if p.t.Get().Kind == "as" {
 		p.t.Eat()
+		if !p.t.HasNext() || p.t.GetNext().Kind != "identifier" {
+			Stop("Expected identifier after 'as' in line " + fmt.Sprint(node.Line))
+		}
 		node.Alias = p.t.Eat().Lexeme
 	} else {
 		node.Alias = node.Path
@@ -119,6 +122,9 @@ func (p *Parser) ParseLoopStmt() LoopStmtNode {
 
 	node.Body = make([]Stmt, 0)
 
+	if p.t.Get().Kind != "lbrace" {
+		Stop("Expected '{' in loop statement in line " + fmt.Sprint(p.t.Get().Line))
+	}
 	p.t.Eat() // {
 
 	for {
@@ -156,6 +162,10 @@ func (p *Parser) ParseTryStmt() TryCatchNode {
 
 	node.Body = make([]Stmt, 0)
 
+	if p.t.Get().Kind != "lbrace" {
+		Stop("Expected '{' in try statement in line " + fmt.Sprint(p.t.Get().Line))
+	}
+
 	p.t.Eat() // {
 
 	for {
@@ -171,9 +181,10 @@ func (p *Parser) ParseTryStmt() TryCatchNode {
 		node.Body = append(node.Body, p.ParseStmt())
 	}
 
-	if p.t.Get().Kind == "rbrace" {
-		p.t.Eat()
+	if p.t.Get().Kind != "rbrace" {
+		Stop("Expected '}' in try statement in line " + fmt.Sprint(p.t.Get().Line))
 	}
+	p.t.Eat()
 
 	if p.t.Eat().Kind != "catch" {
 		Stop("expected catch")
@@ -195,9 +206,10 @@ func (p *Parser) ParseTryStmt() TryCatchNode {
 
 		node.Catch = append(node.Catch, p.ParseStmt())
 	}
-	if p.t.Get().Kind == "rbrace" {
-		p.t.Eat()
+	if p.t.Get().Kind != "rbrace" {
+		Stop("Expected '}' in catch statement in line " + fmt.Sprint(p.t.Get().Line))
 	}
+	p.t.Eat()
 
 	if p.t.Get().Kind == "finally" {
 		p.t.Eat()
@@ -256,6 +268,10 @@ func (p *Parser) ParseForInStmt() ForInSatementNode {
 
 	node.Line = p.t.Eat().Line
 
+	if p.t.Get().Kind != "indentifier" {
+		Stop("Expected at least one identifier after 'for' keyword in for-in statement in line " + fmt.Sprint(p.t.Get().Line))
+	}
+
 	firstVar := p.t.Eat().Lexeme
 
 	var secondVar string = ""
@@ -302,8 +318,10 @@ func (p *Parser) ParseForInStmt() ForInSatementNode {
 		node.Body = append(node.Body, p.ParseStmt())
 	}
 
-	if p.t.Eat().Kind != "rbrace" {
+	if p.t.Get().Kind != "rbrace" {
 		Stop("Expected '}' in for in statement in line " + fmt.Sprint(p.t.Get().Line))
+	} else {
+		p.t.Eat()
 	}
 
 	if len(node.Body) == 0 {
@@ -335,8 +353,17 @@ func (p *Parser) ParseStructDeclaration() StructDeclarationNode {
 	node.Line = line
 
 	// struct name
+
+	if p.t.Get().Kind != "identifier" {
+		Stop("Expected identifier after 'struct' keyword in struct declaration in line " + fmt.Sprint(p.t.Get().Line))
+	}
+
 	node.Name = p.t.Eat().Lexeme
 	node.Properties = make([]string, 0)
+
+	if p.t.Get().Kind != "lbrace" {
+		Stop("Expected '{' in struct declaration in line " + fmt.Sprint(node.Line))
+	}
 
 	p.t.Eat()
 
@@ -350,6 +377,10 @@ func (p *Parser) ParseStructDeclaration() StructDeclarationNode {
 			continue
 		}
 
+		if p.t.Get().Kind != "identifier" {
+			Stop("Expected identifier in struct declaration but found: " + p.t.Get().Kind + " in line " + fmt.Sprint(node.Line))
+		}
+
 		node.Properties = append(node.Properties, p.t.Eat().Lexeme)
 
 		if p.t.Get().Kind == "comma" {
@@ -357,11 +388,10 @@ func (p *Parser) ParseStructDeclaration() StructDeclarationNode {
 		}
 	}
 
-	p.t.Eat()
-
-	if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" || p.t.Get().Kind == "eol" {
-		p.t.Eat()
+	if p.t.Get().Kind != "rbrace" {
+		Stop("Expected '}' in struct declaration in line " + fmt.Sprint(node.Line))
 	}
+	p.t.Eat()
 
 	return node
 }
@@ -377,12 +407,18 @@ func (p *Parser) ParseFunctionDeclaration() FunctionDeclarationNode {
 	} else if p.t.Get().Kind == "lpar" {
 		node.Name = ""
 		node.Line = p.t.Get().Line
+	} else {
+		Stop("Expected identifier or '(' in function declaration in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
 	args := p.ParseArgs()
 
 	for _, arg := range args {
 		node.Parameters = append(node.Parameters, arg.(IdentifierNode).Value)
+	}
+
+	if p.t.Get().Kind != "lbrace" {
+		Stop("Expected '{' in function declaration in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
 	p.t.Eat() // open brace
@@ -522,8 +558,7 @@ func (p *Parser) ParseExpressionStmt() ExpressionStmtNode {
 	token := p.t.Get()
 	val := p.ParseExp()
 	if val == nil {
-		fmt.Println("exp stmt with null value")
-		fmt.Println("after token " + token.Lexeme + " line " + strconv.Itoa(token.Line))
+		fmt.Println("Bad expression after token " + token.Lexeme + " line " + strconv.Itoa(token.Line))
 		os.Exit(1)
 	}
 	return ExpressionStmtNode{Expression: val}
@@ -573,6 +608,10 @@ func (p *Parser) ParseAnonFnExp() Exp {
 
 	for _, arg := range args {
 		node.Parameters = append(node.Parameters, arg.(IdentifierNode).Value)
+	}
+
+	if p.t.Get().Kind != "lbrace" {
+		Stop("Expected '{' in anon function declaration in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
 	p.t.Eat() // open brace
@@ -852,12 +891,21 @@ func (p *Parser) ParseIndexAccessExp() Exp {
 
 		if p.t.Get().Lexeme == ":" {
 			p.t.Eat()
+
+			if p.t.Get().Lexeme == "]" {
+				Stop("Empty slice expression at line " + fmt.Sprint(line))
+			}
+
 			sliceNode := SliceExpNode{}
 			sliceNode.Line = line
 			sliceNode.Left = left
 			sliceNode.From = NumberNode{Value: "0"}
 			sliceNode.To = p.ParseExp()
 			left = sliceNode
+
+			if p.t.Get().Lexeme != "]" {
+				Stop("Expected ']'")
+			}
 
 			p.t.Eat()
 
@@ -887,9 +935,10 @@ func (p *Parser) ParseIndexAccessExp() Exp {
 			left = n
 		}
 
-		// p.t.Eat()
 		if p.t.Get().Lexeme == "]" {
 			p.t.Eat()
+		} else {
+			Stop("Expected ']' at line " + fmt.Sprint(line))
 		}
 	}
 
@@ -898,6 +947,7 @@ func (p *Parser) ParseIndexAccessExp() Exp {
 }
 
 func (p *Parser) parseUnaryExp() Exp {
+
 	if p.t.Get().Lexeme == "-" && p.t.Get().Kind == "operator" {
 		op := p.t.Eat()
 		n := UnaryExpNode{}
@@ -942,6 +992,12 @@ func (p *Parser) parsePrimaryExp() Exp {
 		v := p.ParseExp()
 		p.t.Eat()
 		return v
+	} else if token.Kind == "eof" {
+		Stop("Unexpected end of file in line " + fmt.Sprint(token.Line))
+		return nil
+	} else if token.Kind == "eol" {
+		Stop("Unexpected line break in line " + fmt.Sprint(token.Line))
+		return nil
 	} else {
 		Stop("Unexpected token: " + token.Lexeme + " in line " + fmt.Sprint(token.Line))
 		return nil
@@ -953,6 +1009,10 @@ func (p *Parser) ParseCallExpr(member Exp) Exp {
 	node := CallExpNode{}
 	node.Line = p.t.Get().Line
 
+	if member.ExpType() != "IdentifierNode" && member.ExpType() != "MemberExpNode" {
+		Stop("Expected identifier in call expression in line " + fmt.Sprint(p.t.Get().Line))
+	}
+
 	node.Name = member
 
 	args := p.ParseArgs()
@@ -963,6 +1023,11 @@ func (p *Parser) ParseCallExpr(member Exp) Exp {
 }
 
 func (p *Parser) ParseArgs() []Exp {
+
+	if p.t.Get().Kind != "lpar" {
+		Stop("Expected '(' after function arguments in line " + fmt.Sprint(p.t.Get().Line))
+	}
+
 	p.t.Eat()
 
 	var args []Exp
@@ -983,6 +1048,8 @@ func (p *Parser) ParseArgs() []Exp {
 func (p *Parser) ParseArgumentsList() []Exp {
 	var args []Exp
 
+	p.context.AvoidStructInit = true
+
 	args = append(args, p.ParseExp())
 
 	for p.t.Get().Lexeme == "," {
@@ -990,6 +1057,10 @@ func (p *Parser) ParseArgumentsList() []Exp {
 		args = append(args, p.ParseExp())
 	}
 
+	if p.t.Get().Lexeme != ")" {
+		Stop("Expected ')' after function arguments in line " + fmt.Sprint(p.t.Get().Line))
+	}
+	p.context.AvoidStructInit = false
 	p.t.Eat()
 
 	return args
@@ -1003,7 +1074,6 @@ func (p *Parser) ParseArrayInitializationExp() Exp {
 	for {
 
 		if p.t.Get().Kind == "rbracket" || p.t.Get().Kind == "eof" {
-			p.t.Eat()
 			break
 		}
 
@@ -1019,6 +1089,12 @@ func (p *Parser) ParseArrayInitializationExp() Exp {
 		// "a"
 		node.Value = append(node.Value, p.ParseExp())
 
+	}
+
+	if p.t.Get().Kind != "rbracket" {
+		Stop("Expected ']' in line " + fmt.Sprint(p.t.Get().Line))
+	} else {
+		p.t.Eat()
 	}
 
 	return node

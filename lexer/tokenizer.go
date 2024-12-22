@@ -36,7 +36,7 @@ func Tokenize(input string) []Token {
 		token := t.Get()
 
 		// If it is space
-		if token == ' ' {
+		if token == ' ' || token == '\t' {
 			t.Eat()
 			continue
 		}

@@ -31,7 +31,7 @@ func main() {
 	// litter.Dump(tokens)
 	// os.Exit(1)
 	ast := parser.NewParser(tokens).GetAST()
-	// litter.Dump(ast)
+	// litter.Dump(ast[0])
 	// os.Exit(1)
 
 	parentEnv := environment.NewEnvironment(nil)

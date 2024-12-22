@@ -3,26 +3,38 @@ package osLib
 import (
 	environment "evie/env"
 	"evie/values"
+	"os/exec"
 )
 
 func Load(env *environment.Environment) {
-	structValue := values.StructValue{}
-	structValue.Properties = []string{"os"}
 
-	structValue.Methods = make(map[string]values.RuntimeValue)
+	ns := values.NamespaceValue{Value: make(map[string]values.RuntimeValue)}
 
-	fn := values.NativeFunctionValue{}
+	ns.Value["exec"] = values.NativeFunctionValue{Value: Exec}
 
-	fn.Value = func(args []values.RuntimeValue) values.RuntimeValue {
-		return values.StringValue{Value: "Hola modulo os"}
+	env.Variables["os"] = ns
+
+}
+
+func Exec(args []values.RuntimeValue) values.RuntimeValue {
+
+	if len(args) == 0 {
+		return values.ErrorValue{Value: "Missing arguments"}
 	}
 
-	structValue.Methods["hello"] = fn
+	strArgs := make([]string, len(args))
 
-	obj := values.ObjectValue{}
-	obj.Struct = structValue
-	obj.Value = make(map[string]values.RuntimeValue)
+	for i, arg := range args {
+		strArgs[i] = arg.(values.StringValue).Value
+	}
 
-	env.Variables["os"] = obj
+	cmd := exec.Command(strArgs[0], strArgs[1:]...)
 
+	output, err := cmd.Output()
+
+	if err != nil {
+		return values.ErrorValue{Value: err.Error()}
+	}
+
+	return values.StringValue{Value: string(output)}
 }

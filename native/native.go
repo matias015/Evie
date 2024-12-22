@@ -19,6 +19,7 @@ func SetupEnvironment(env *environment.Environment) {
 	env.Variables["print"] = values.NativeFunctionValue{Value: PrintStdOut}
 	env.Variables["number"] = values.NativeFunctionValue{Value: ToNumber}
 	env.Variables["string"] = values.NativeFunctionValue{Value: ToString}
+	env.Variables["isNothing"] = values.NativeFunctionValue{Value: IsNothing}
 
 	env.DeclareVar("time", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
 		now := time.Now()
@@ -42,6 +43,20 @@ func SetupEnvironment(env *environment.Environment) {
 	}
 
 	env.Variables["getArgs"] = values.NativeFunctionValue{Value: GetArguments}
+}
+
+func IsNothing(args []values.RuntimeValue) values.RuntimeValue {
+	if len(args) == 0 {
+		return values.ErrorValue{Value: "Missing argument to isNothing function"}
+	}
+
+	for _, arg := range args {
+		if arg.GetType() != "NothingValue" {
+			return values.BooleanValue{Value: false}
+		}
+	}
+
+	return values.BooleanValue{Value: true}
 }
 
 func ToNumber(args []values.RuntimeValue) values.RuntimeValue {

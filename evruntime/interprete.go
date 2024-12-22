@@ -1,6 +1,7 @@
 package evruntime
 
 import (
+	"errors"
 	environment "evie/env"
 	"evie/lexer"
 	"evie/lib"
@@ -408,7 +409,13 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 		return evaluatedExp
 	}
 
-	if evaluatedExp.GetBool() == true {
+	value, err := e.EvaluateImplicitBoolConversion(evaluatedExp)
+
+	if err != nil {
+		return e.Panic(err.Error(), node.Line, env)
+	}
+
+	if value == true {
 
 		newEnv := environment.NewEnvironment(env)
 
@@ -434,7 +441,13 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 					return exp
 				}
 
-				if exp.GetBool() == true {
+				value, err := e.EvaluateImplicitBoolConversion(evaluatedExp)
+
+				if err != nil {
+					return e.Panic(err.Error(), node.Line, env)
+				}
+
+				if value == true {
 
 					matched = true
 
@@ -573,7 +586,13 @@ func (e Evaluator) EvaluateTernaryExpression(node parser.TernaryExpNode, env *en
 		return condition
 	}
 
-	if condition.GetBool() {
+	value, err := e.EvaluateImplicitBoolConversion(condition)
+
+	if err != nil {
+		return e.Panic(err.Error(), node.Line, env)
+	}
+
+	if value {
 		return e.EvaluateExpression(node.Left, env)
 	} else {
 		return e.EvaluateExpression(node.Right, env)
@@ -906,10 +925,12 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 
 		}
 		e.CallStackExit()
+		return values.NothingValue{}
 
+	default:
+		return e.Panic("Only functions can be called not "+calle.GetType(), node.Line, env)
 	}
 
-	return values.BooleanValue{Value: true}
 }
 
 // Creates an access props chain
@@ -985,6 +1006,113 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 	return right
 }
 
+/*
+
+You cant compare values of different types unless one of them is Nothing
+
+Nothins is nothing and should not be converted to any value
+The unique way to make "a == Nothing -> True" is when 'a' is Nothing too
+
+"" == Nothing -> False
+-1 == Nothing -> False
+0 == Nothing -> False
+false == Nothing -> False
+Nothing == Nothing -> True
+
+
+
+
+*/
+
+// func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *environment.Environment) values.RuntimeValue {
+
+// 	left := e.EvaluateExpression(node.Left, env)
+// 	right := e.EvaluateExpression(node.Right, env)
+
+// 	if left.GetType() == "ErrorValue" {
+// 		return left
+// 	}
+// 	if right.GetType() == "ErrorValue" {
+// 		return right
+// 	}
+
+// 	op := node.Operator
+
+// 	types := left.GetType()
+
+// 	if types != right.GetType() {
+// 		if types != "NothingValue" && right.GetType() != "NothingValue" {
+// 			return e.Panic("Type mismatch: "+types+" and "+right.GetType(), node.Line, env)
+// 		}
+// 	}
+
+// 	if types != "NumberValue" && types != "StringValue" && types != "BooleanValue" && types != "NothingValue" {
+// 		return e.Panic("Cant use operator "+op+" with type "+types, node.Line, env)
+// 	}
+
+// 	if op == "+" {
+
+// 		if types == "StringValue" {
+// 			return values.StringValue{Value: left.GetStr() + right.GetStr(), Mutable: false}
+// 		} else if types == "NumberValue" {
+// 			return values.NumberValue{Value: left.GetNumber() + right.GetNumber()}
+// 		}
+// 	} else if op == "-" {
+// 		if types == "NumberValue" {
+// 			return values.NumberValue{Value: left.GetNumber() - right.GetNumber()}
+// 		} else {
+// 			return e.Panic("Cant subtract with strings", node.Line, env)
+// 		}
+// 	} else if op == "*" {
+// 		if types == "NumberValue" {
+// 			return values.NumberValue{Value: left.GetNumber() * right.GetNumber()}
+// 		} else {
+// 			e.Panic("Cant multiply with strings", node.Line, env)
+// 		}
+// 	} else if op == "/" {
+// 		if types == "NumberValue" {
+// 			return values.NumberValue{Value: left.GetNumber() / right.GetNumber()}
+// 		} else {
+// 			e.Panic("Cant divide with string", node.Line, env)
+// 		}
+// 	} else if op == "==" {
+// 		if types == "NumberValue" {
+// 			return values.BooleanValue{Value: left.GetNumber() == right.GetNumber()}
+// 		} else if types == "StringValue" {
+// 			return values.BooleanValue{Value: left.GetStr() == right.GetStr()}
+// 		} else if types == "BooleanValue" {
+// 			return values.BooleanValue{Value: left.GetBool() == right.GetBool()}
+// 		}
+// 	} else if op == ">" {
+// 		if types == "NumberValue" {
+// 			return values.BooleanValue{Value: left.GetNumber() > right.GetNumber()}
+// 		}
+// 	} else if op == "<" {
+// 		if types == "NumberValue" {
+// 			return values.BooleanValue{Value: left.GetNumber() < right.GetNumber()}
+// 		}
+// 	} else if op == "<=" {
+// 		if types == "NumberValue" {
+// 			return values.BooleanValue{Value: left.GetNumber() <= right.GetNumber()}
+// 		}
+// 	} else if op == ">=" {
+// 		if types == "NumberValue" {
+// 			return values.BooleanValue{Value: left.GetNumber() >= right.GetNumber()}
+// 		}
+// 	} else if op == "and" {
+// 		if types == "BooleanValue" {
+// 			return values.BooleanValue{Value: left.GetBool() && right.GetBool()}
+// 		}
+// 	} else if op == "or" {
+// 		if types == "BooleanValue" {
+// 			return values.BooleanValue{Value: left.GetBool() || right.GetBool()}
+// 		}
+// 	}
+
+// 	return nil
+
+// }
+
 func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *environment.Environment) values.RuntimeValue {
 
 	left := e.EvaluateExpression(node.Left, env)
@@ -999,68 +1127,145 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 
 	op := node.Operator
 
-	types := left.GetType()
+	type1 := left.GetType()
+	type2 := right.GetType()
 
-	if types != right.GetType() {
-		return e.Panic("Type mismatch: "+types+" and "+right.GetType(), node.Line, env)
-	}
+	equalTypes := type1 == type2
 
 	if op == "+" {
-		if types == "StringValue" {
-			return values.StringValue{Value: left.GetStr() + right.GetStr(), Mutable: false}
-		} else if types == "NumberValue" {
-			return values.NumberValue{Value: left.GetNumber() + right.GetNumber()}
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1+" and "+type2, node.Line, env)
 		}
+
+		if type1 == "StringValue" {
+			return values.StringValue{Value: left.GetStr() + right.GetStr(), Mutable: false}
+		} else if type1 == "NumberValue" {
+			return values.NumberValue{Value: left.GetNumber() + right.GetNumber()}
+		} else {
+			return e.Panic("Cant use operator "+op+" with type "+type1, node.Line, env)
+		}
+
 	} else if op == "-" {
-		if types == "NumberValue" {
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1+" and "+type2, node.Line, env)
+		}
+
+		if type1 == "NumberValue" {
 			return values.NumberValue{Value: left.GetNumber() - right.GetNumber()}
 		} else {
-			return e.Panic("Cant subtract with strings", node.Line, env)
+			return e.Panic("Cant use operator "+op+" with type "+type1, node.Line, env)
 		}
 	} else if op == "*" {
-		if types == "NumberValue" {
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1+" and "+type2, node.Line, env)
+		}
+
+		if type1 == "NumberValue" {
 			return values.NumberValue{Value: left.GetNumber() * right.GetNumber()}
 		} else {
-			e.Panic("Cant multiply with strings", node.Line, env)
+			return e.Panic("Cant use operator "+op+" with type "+type1, node.Line, env)
 		}
 	} else if op == "/" {
-		if types == "NumberValue" {
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1+" and "+type2, node.Line, env)
+		}
+
+		if type1 == "NumberValue" {
 			return values.NumberValue{Value: left.GetNumber() / right.GetNumber()}
 		} else {
-			e.Panic("Cant divide with string", node.Line, env)
+			return e.Panic("Cant use operator "+op+" with type "+type1, node.Line, env)
 		}
 	} else if op == "==" {
-		if types == "NumberValue" {
-			return values.BooleanValue{Value: left.GetNumber() == right.GetNumber()}
-		} else if types == "StringValue" {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1+" and "+type2, node.Line, env)
+		}
+
+		if type1 == "StringValue" {
 			return values.BooleanValue{Value: left.GetStr() == right.GetStr()}
-		} else if types == "BooleanValue" {
+		} else if type1 == "NumberValue" {
+			return values.BooleanValue{Value: left.GetNumber() == right.GetNumber()}
+		} else if type1 == "BooleanValue" {
 			return values.BooleanValue{Value: left.GetBool() == right.GetBool()}
+		} else {
+			return e.Panic("Cant use operator "+op+" with type "+type1, node.Line, env)
 		}
 	} else if op == ">" {
-		if types == "NumberValue" {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1+" and "+type2, node.Line, env)
+		}
+
+		if type1 == "NumberValue" {
 			return values.BooleanValue{Value: left.GetNumber() > right.GetNumber()}
+		} else {
+			return e.Panic("Operator "+op+" only can be used with numbers, not with type "+type1, node.Line, env)
 		}
 	} else if op == "<" {
-		if types == "NumberValue" {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1+" and "+type2, node.Line, env)
+		}
+
+		if type1 == "NumberValue" {
 			return values.BooleanValue{Value: left.GetNumber() < right.GetNumber()}
+		} else {
+			return e.Panic("Operator "+op+" only can be used with numbers, not with type "+type1, node.Line, env)
 		}
 	} else if op == "<=" {
-		if types == "NumberValue" {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1+" and "+type2, node.Line, env)
+		}
+
+		if type1 == "NumberValue" {
 			return values.BooleanValue{Value: left.GetNumber() <= right.GetNumber()}
+		} else {
+			return e.Panic("Operator "+op+" only can be used with numbers, not with type "+type1, node.Line, env)
 		}
 	} else if op == ">=" {
-		if types == "NumberValue" {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1+" and "+type2, node.Line, env)
+		}
+
+		if type1 == "NumberValue" {
 			return values.BooleanValue{Value: left.GetNumber() >= right.GetNumber()}
+		} else {
+			return e.Panic("Operator "+op+" only can be used with numbers, not with type "+type1, node.Line, env)
 		}
 	} else if op == "and" {
-		if types == "BooleanValue" {
-			return values.BooleanValue{Value: left.GetBool() && right.GetBool()}
+
+		leftValue, err := e.EvaluateImplicitBoolConversion(left)
+
+		if err != nil {
+			return e.Panic(err.Error(), node.Line, env)
 		}
+
+		rightValue, err := e.EvaluateImplicitBoolConversion(right)
+
+		if err != nil {
+			return e.Panic(err.Error(), node.Line, env)
+		}
+
+		return values.BooleanValue{Value: leftValue && rightValue}
+
 	} else if op == "or" {
-		if types == "BooleanValue" {
-			return values.BooleanValue{Value: left.GetBool() || right.GetBool()}
+
+		leftValue, err := e.EvaluateImplicitBoolConversion(left)
+
+		if err != nil {
+			return e.Panic(err.Error(), node.Line, env)
 		}
+
+		rightValue, err := e.EvaluateImplicitBoolConversion(right)
+
+		if err != nil {
+			return e.Panic(err.Error(), node.Line, env)
+		}
+
+		return values.BooleanValue{Value: leftValue || rightValue}
+
 	}
 
 	return nil
@@ -1077,6 +1282,21 @@ func (e Evaluator) EvaluateUnaryExpression(node parser.UnaryExpNode, env *enviro
 		return values.BooleanValue{Value: !exp.GetBool()}
 	} else {
 		return nil
+	}
+}
+
+func (e Evaluator) EvaluateImplicitBoolConversion(value values.RuntimeValue) (bool, error) {
+	switch val := value.(type) {
+	case values.NumberValue:
+		return val.GetBool(), nil
+	case values.StringValue:
+		return val.GetBool(), nil
+	case values.BooleanValue:
+		return val.GetBool(), nil
+	case values.ArrayValue:
+		return val.GetBool(), nil
+	default:
+		return false, errors.New("Cannot convert " + value.GetType() + " to boolean")
 	}
 }
 
