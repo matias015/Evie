@@ -91,6 +91,11 @@ func (p *Parser) ParseStmt() Stmt {
 func (p *Parser) ParseImportStmt() ImportNode {
 	node := ImportNode{}
 	node.Line = p.t.Eat().Line
+
+	if p.t.Get().Kind != "identifier" {
+		Stop("Expected module name but found: " + p.t.Get().Kind + " in line " + fmt.Sprint(node.Line))
+	}
+
 	node.Path = p.t.Eat().Lexeme
 
 	if p.t.Get().Kind == "as" {
@@ -192,6 +197,38 @@ func (p *Parser) ParseTryStmt() TryCatchNode {
 	}
 	if p.t.Get().Kind == "rbrace" {
 		p.t.Eat()
+	}
+
+	if p.t.Get().Kind == "finally" {
+		p.t.Eat()
+
+		node.Finally = make([]Stmt, 0)
+
+		if p.t.Get().Kind == "lbrace" {
+			p.t.Eat()
+		} else {
+			Stop("Expected '{' in finally statement in line " + fmt.Sprint(p.t.Get().Line))
+		}
+
+		for {
+			if p.t.Get().Kind == "eol" {
+				p.t.Eat()
+				continue
+			}
+
+			if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+				break
+			}
+
+			node.Finally = append(node.Finally, p.ParseStmt())
+		}
+
+		if p.t.Get().Kind == "rbrace" {
+			p.t.Eat()
+		} else {
+			Stop("Expected '}' in finally statement in line " + fmt.Sprint(p.t.Get().Line))
+		}
+
 	}
 
 	return node
@@ -828,7 +865,6 @@ func (p *Parser) ParseIndexAccessExp() Exp {
 		}
 
 		index := p.ParseExp()
-		// litter.Dump(index)
 
 		n := IndexAccessExpNode{}
 		n.Line = line
@@ -863,6 +899,13 @@ func (p *Parser) ParseIndexAccessExp() Exp {
 
 func (p *Parser) parseUnaryExp() Exp {
 	if p.t.Get().Lexeme == "-" && p.t.Get().Kind == "operator" {
+		op := p.t.Eat()
+		n := UnaryExpNode{}
+		n.Line = op.Line
+		n.Operator = op.Lexeme
+		n.Right = p.parseUnaryExp()
+		return n
+	} else if p.t.Get().Lexeme == "not" {
 		op := p.t.Eat()
 		n := UnaryExpNode{}
 		n.Line = op.Line

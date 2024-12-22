@@ -16,7 +16,7 @@ func (t *RuneIterator) Eat() rune {
 }
 
 func (t RuneIterator) HasNext() bool {
-	return t.Index < len(t.Items)
+	return t.Index+1 < len(t.Items)
 }
 
 func (t RuneIterator) IsOutOfBounds() bool {

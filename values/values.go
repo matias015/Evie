@@ -37,7 +37,7 @@ func (s NumberValue) GetStr() string {
 	return strconv.FormatFloat(s.Value, 'f', -1, 64)
 }
 func (s NumberValue) GetBool() bool {
-	return false
+	return true
 }
 
 func (s NumberValue) GetProp(v *RuntimeValue, name string) RuntimeValue {

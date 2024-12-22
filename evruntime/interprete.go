@@ -1,4 +1,4 @@
-package runtime
+package evruntime
 
 import (
 	environment "evie/env"
@@ -39,8 +39,6 @@ func (e *Evaluator) EvaluateStmt(node parser.Stmt, env *environment.Environment)
 	switch n := node.(type) {
 	case parser.VarDeclarationNode:
 		return e.EvaluateVarDeclaration(node.(parser.VarDeclarationNode), env)
-	case parser.TryCatchNode:
-		return e.EvaluateTryCatchNode(node.(parser.TryCatchNode), env)
 	case parser.IfStatementNode:
 		return e.EvaluateIfStmt(node.(parser.IfStatementNode), env)
 	case parser.ForInSatementNode:
@@ -57,6 +55,8 @@ func (e *Evaluator) EvaluateStmt(node parser.Stmt, env *environment.Environment)
 		return e.EvaluateContinueNode(n, env)
 	case parser.ReturnNode:
 		return e.EvaluateReturnNode(n, env)
+	case parser.TryCatchNode:
+		return e.EvaluateTryCatchNode(node.(parser.TryCatchNode), env)
 	case parser.StructDeclarationNode:
 		return e.EvaluatStructDeclarationStmt(node.(parser.StructDeclarationNode), env)
 	case parser.ImportNode:
@@ -188,6 +188,9 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 		ret := e.EvaluateStmt(stmt, newenv)
 
 		if ret != nil && ret.GetType() == "return" {
+			if node.Finally != nil {
+				e.EvaluateFinallyBlock(node.Finally, newenv)
+			}
 			return ret
 		}
 
@@ -202,6 +205,9 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 
 				// Error inside the catch lol
 				if result.GetType() == "ErrorValue" || result.GetType() == "return" {
+					if node.Finally != nil {
+						e.EvaluateFinallyBlock(node.Finally, newenv)
+					}
 					return result
 				} else if result.GetType() == "break" {
 					return nil
@@ -209,10 +215,26 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 					continue
 				}
 			}
+
+			if node.Finally != nil {
+				e.EvaluateFinallyBlock(node.Finally, newenv)
+			}
+
 			return nil
 		}
 	}
+	if node.Finally != nil {
+		e.EvaluateFinallyBlock(node.Finally, newenv)
+	}
 	return nil
+}
+
+func (e Evaluator) EvaluateFinallyBlock(stmt []parser.Stmt, env *environment.Environment) values.RuntimeValue {
+
+	fmt.Println("Ejecutando finally")
+
+	return values.BooleanValue{Value: true}
+
 }
 
 // RETURN STMT
@@ -506,6 +528,8 @@ func (e *Evaluator) EvaluateExpression(node parser.Exp, env *environment.Environ
 		return values.NumberValue{Value: parsedNumber}
 	case parser.StringNode:
 		return values.StringValue{Value: n.Value}
+	case parser.NothingNode:
+		return values.NothingValue{}
 	case parser.IndexAccessExpNode:
 		return e.EvaluateIndexAccessExpression(n, env)
 	case parser.BooleanNode:
@@ -1049,6 +1073,8 @@ func (e Evaluator) EvaluateUnaryExpression(node parser.UnaryExpNode, env *enviro
 
 	if node.Operator == "-" && exp.GetType() == "NumberValue" {
 		return values.NumberValue{Value: -exp.GetNumber()}
+	} else if node.Operator == "not" {
+		return values.BooleanValue{Value: !exp.GetBool()}
 	} else {
 		return nil
 	}

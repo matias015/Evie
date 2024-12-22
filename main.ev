@@ -1,23 +1,6 @@
 
-struct DB{
-	conn
-}
-
-DB -> connect(){
-	print("Connecting")
-}
-
-DB -> close(){
-	print("Closing")
-}
-
-DB -> query(){
-	this.connect()
-	print("Execute query")
-	this.close()
-}
 
 
-var db = DB{}
 
-db.query()
+
+

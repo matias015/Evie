@@ -2,6 +2,9 @@ package lexer
 
 import (
 	"evie/utils"
+	"fmt"
+	"os"
+	"strconv"
 	"unicode"
 )
 
@@ -39,7 +42,7 @@ func Tokenize(input string) []Token {
 		}
 
 		// If it is comment
-		if token == '/' && t.GetNext() == '/' {
+		if token == '/' && t.HasNext() && t.GetNext() == '/' {
 			t.Eat()
 			t.Eat()
 			for {
@@ -55,10 +58,9 @@ func Tokenize(input string) []Token {
 			continue
 		}
 
-		// If it is new line
 		if token == '\r' {
-			t.Eat()
-			if t.HasNext() && t.Get() == '\n' {
+			if t.HasNext() && t.GetNext() == '\n' {
+				t.Eat()
 				t.Eat()
 				line += 1
 
@@ -73,9 +75,51 @@ func Tokenize(input string) []Token {
 					})
 				}
 				continue
+			} else {
+				t.Eat()
+				continue
 			}
-
 		}
+
+		if token == '\n' {
+			t.Eat()
+			line += 1
+			lastAdded := tokens[len(tokens)-1].Kind
+
+			if lastAdded != "eol" && lastAdded != "rbrace" && lastAdded != "lbrace" && lastAdded != "rbracket" && lastAdded != "lbracket" && lastAdded != "comma" {
+				tokens = append(tokens, Token{
+					Kind:   "eol",
+					Lexeme: "eol",
+					Line:   line,
+					Column: 0,
+				})
+			}
+			continue
+		}
+
+		// If it is new line
+		// if token == '\r' {
+		// 	if t.HasNext() && t.Get() == '\n' {
+		// 		t.Eat()
+		// 		t.Eat()
+		// 		line += 1
+
+		// 		lastAdded := tokens[len(tokens)-1].Kind
+
+		// 		if lastAdded != "eol" && lastAdded != "rbrace" && lastAdded != "lbrace" && lastAdded != "rbracket" && lastAdded != "lbracket" && lastAdded != "comma" {
+		// 			tokens = append(tokens, Token{
+		// 				Kind:   "eol",
+		// 				Lexeme: "eol",
+		// 				Line:   line,
+		// 				Column: 0,
+		// 			})
+		// 		}
+		// 		continue
+		// 	} else {
+		// 		t.Eat()
+		// 		continue
+		// 	}
+		// }
 
 		// If it is a letter
 		if IsAlpha(token) || token == '_' {
@@ -119,7 +163,11 @@ func Tokenize(input string) []Token {
 		// If it is a string
 		if token == '"' {
 			t.Eat()
+
+			initLine := line
+
 			for {
+
 				if t.HasNext() && t.Get() != '"' {
 
 					if string(t.Get()) == "\\" && string(t.GetNext()) == "n" {
@@ -134,6 +182,10 @@ func Tokenize(input string) []Token {
 					}
 					word += string(t.Eat())
 				} else {
+					if t.Get() != '"' {
+						fmt.Println("string started at line " + strconv.Itoa(initLine) + " not closed")
+						os.Exit(1)
+					}
 					t.Eat()
 					break
 				}
@@ -346,6 +398,9 @@ func Tokenize(input string) []Token {
 			continue
 		}
 
+		fmt.Println("Unknown token: " + string(token) + " in line " + fmt.Sprint(line))
+		os.Exit(1)
+
 		if t.HasNext() {
 			t.Eat()
 		}
@@ -402,6 +457,8 @@ func TokenFromWord(w string, l int) Token {
 	} else if w == "try" {
 		Kind = w
 	} else if w == "catch" {
+		Kind = w
+	} else if w == "finally" {
 		Kind = w
 	} else if w == "import" {
 		Kind = w
