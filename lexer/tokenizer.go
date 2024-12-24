@@ -46,9 +46,11 @@ func Tokenize(input string) []Token {
 			t.Eat()
 			t.Eat()
 			for {
-				if t.Get() == '\r' && t.GetNext() == '\n' {
-					line += 1
+				if t.Get() == '\r' {
 					t.Eat()
+					continue
+				} else if t.Get() == '\n' {
+					line += 1
 					t.Eat()
 					break
 				} else {
@@ -187,7 +189,12 @@ func Tokenize(input string) []Token {
 						continue
 					}
 
-					if t.Get() == '\r' && t.GetNext() == '\n' {
+					if t.Get() == '\r' {
+						t.Eat()
+						continue
+					}
+
+					if t.Get() == '\n' {
 						line += 1
 					}
 					word += string(t.Eat())
