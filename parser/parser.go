@@ -30,7 +30,7 @@ func (p Parser) GetAST() []Stmt {
 
 	for {
 
-		if p.t.IsOutOfBounds() || p.t.Get().Kind == "eof" {
+		if p.t.IsOutOfBounds() || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
@@ -46,40 +46,40 @@ func (p Parser) GetAST() []Stmt {
 
 func (p *Parser) ParseStmt() Stmt {
 
-	if p.t.Get().Kind == "eol" {
+	if p.t.Get().Kind == lexer.TOKEN_EOL {
 		p.t.Eat()
 	}
 
-	if p.t.Get().Kind == "eof" {
+	if p.t.Get().Kind == lexer.TOKEN_EOF {
 		return nil
 	}
 
 	token := p.t.Get()
 
-	if token.Kind == "var" {
+	if token.Kind == lexer.TOKEN_VAR {
 		return p.ParseVarDeclaration()
-	} else if token.Kind == "try" {
+	} else if token.Kind == lexer.TOKEN_TRY {
 		return p.ParseTryStmt()
-	} else if token.Kind == "if" {
+	} else if token.Kind == lexer.TOKEN_IF {
 		return p.ParseIfStmt()
-	} else if token.Kind == "import" {
+	} else if token.Kind == lexer.TOKEN_IMPORT {
 		return p.ParseImportStmt()
-	} else if token.Kind == "loop" {
+	} else if token.Kind == lexer.TOKEN_LOOP {
 		return p.ParseLoopStmt()
-	} else if token.Kind == "fn" && p.t.GetNext().Kind == "identifier" {
+	} else if token.Kind == lexer.TOKEN_FN && p.t.GetNext().Kind == lexer.TOKEN_IDENTIFIER {
 		p.t.Eat()
 		return p.ParseFunctionDeclaration()
-	} else if token.Kind == "for" {
+	} else if token.Kind == lexer.TOKEN_FOR {
 		return p.ParseForInStmt()
-	} else if token.Kind == "break" {
+	} else if token.Kind == lexer.TOKEN_BREAK {
 		return p.ParseBreakStmt()
-	} else if token.Kind == "continue" {
+	} else if token.Kind == lexer.TOKEN_CONTINUE {
 		return p.ParseContinueStmt()
-	} else if token.Kind == "return" {
+	} else if token.Kind == lexer.TOKEN_RETURN {
 		return p.ParseReturnStmt()
-	} else if token.Kind == "identifier" && p.t.GetNext().Kind == "arrowleft" {
+	} else if token.Kind == lexer.TOKEN_IDENTIFIER && p.t.GetNext().Kind == lexer.TOKEN_LARROW {
 		return p.ParseStructMethodDeclaration()
-	} else if token.Kind == "struct" {
+	} else if token.Kind == lexer.TOKEN_STRUCT {
 		return p.ParseStructDeclaration()
 	} else {
 
@@ -92,15 +92,15 @@ func (p *Parser) ParseImportStmt() ImportNode {
 	node := ImportNode{}
 	node.Line = p.t.Eat().Line
 
-	if p.t.Get().Kind != "identifier" {
-		Stop("Expected module name but found: " + p.t.Get().Kind + " in line " + fmt.Sprint(node.Line))
+	if p.t.Get().Kind != lexer.TOKEN_IDENTIFIER {
+		Stop("Expected module name but found: " + lexer.GetTokenName(p.t.Get().Kind) + " in line " + fmt.Sprint(node.Line))
 	}
 
 	node.Path = p.t.Eat().Lexeme
 
-	if p.t.Get().Kind == "as" {
+	if p.t.Get().Kind == lexer.TOKEN_AS {
 		p.t.Eat()
-		if !p.t.HasNext() || p.t.GetNext().Kind != "identifier" {
+		if !p.t.HasNext() || p.t.GetNext().Kind != lexer.TOKEN_IDENTIFIER {
 			Stop("Expected identifier after 'as' in line " + fmt.Sprint(node.Line))
 		}
 		node.Alias = p.t.Eat().Lexeme
@@ -122,29 +122,29 @@ func (p *Parser) ParseLoopStmt() LoopStmtNode {
 
 	node.Body = make([]Stmt, 0)
 
-	if p.t.Get().Kind != "lbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_LBRACE {
 		Stop("Expected '{' in loop statement in line " + fmt.Sprint(p.t.Get().Line))
 	}
 	p.t.Eat() // {
 
 	for {
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
-		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
 		node.Body = append(node.Body, p.ParseStmt())
 	}
 
-	if p.t.Get().Kind == "eol" {
+	if p.t.Get().Kind == lexer.TOKEN_EOL {
 		p.t.Eat()
 	}
 
-	if p.t.Get().Kind == "rbrace" {
+	if p.t.Get().Kind == lexer.TOKEN_RBRACE {
 		p.t.Eat()
 	} else {
 		Stop("Expected '}' in loop statement in line " + fmt.Sprint(p.t.Get().Line))
@@ -162,7 +162,7 @@ func (p *Parser) ParseTryStmt() TryCatchNode {
 
 	node.Body = make([]Stmt, 0)
 
-	if p.t.Get().Kind != "lbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_LBRACE {
 		Stop("Expected '{' in try statement in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
@@ -170,23 +170,23 @@ func (p *Parser) ParseTryStmt() TryCatchNode {
 
 	for {
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
-		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
 		node.Body = append(node.Body, p.ParseStmt())
 	}
 
-	if p.t.Get().Kind != "rbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_RBRACE {
 		Stop("Expected '}' in try statement in line " + fmt.Sprint(p.t.Get().Line))
 	}
 	p.t.Eat()
 
-	if p.t.Eat().Kind != "catch" {
+	if p.t.Eat().Kind != lexer.TOKEN_CATCH {
 		Stop("expected catch")
 	} else {
 		p.t.Eat()
@@ -196,46 +196,46 @@ func (p *Parser) ParseTryStmt() TryCatchNode {
 
 	for {
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
-		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
 		node.Catch = append(node.Catch, p.ParseStmt())
 	}
-	if p.t.Get().Kind != "rbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_RBRACE {
 		Stop("Expected '}' in catch statement in line " + fmt.Sprint(p.t.Get().Line))
 	}
 	p.t.Eat()
 
-	if p.t.Get().Kind == "finally" {
+	if p.t.Get().Kind == lexer.TOKEN_FINALLY {
 		p.t.Eat()
 
 		node.Finally = make([]Stmt, 0)
 
-		if p.t.Get().Kind == "lbrace" {
+		if p.t.Get().Kind == lexer.TOKEN_LBRACE {
 			p.t.Eat()
 		} else {
 			Stop("Expected '{' in finally statement in line " + fmt.Sprint(p.t.Get().Line))
 		}
 
 		for {
-			if p.t.Get().Kind == "eol" {
+			if p.t.Get().Kind == lexer.TOKEN_EOL {
 				p.t.Eat()
 				continue
 			}
 
-			if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+			if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 				break
 			}
 
 			node.Finally = append(node.Finally, p.ParseStmt())
 		}
 
-		if p.t.Get().Kind == "rbrace" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE {
 			p.t.Eat()
 		} else {
 			Stop("Expected '}' in finally statement in line " + fmt.Sprint(p.t.Get().Line))
@@ -268,7 +268,7 @@ func (p *Parser) ParseForInStmt() ForInSatementNode {
 
 	node.Line = p.t.Eat().Line
 
-	if p.t.Get().Kind != "indentifier" {
+	if p.t.Get().Kind != lexer.TOKEN_IDENTIFIER {
 		Stop("Expected at least one identifier after 'for' keyword in for-in statement in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
@@ -276,7 +276,7 @@ func (p *Parser) ParseForInStmt() ForInSatementNode {
 
 	var secondVar string = ""
 
-	if p.t.Get().Kind == "comma" {
+	if p.t.Get().Kind == lexer.TOKEN_COMMA {
 		p.t.Eat()
 		secondVar = p.t.Eat().Lexeme
 	}
@@ -288,7 +288,7 @@ func (p *Parser) ParseForInStmt() ForInSatementNode {
 		node.LocalVarName = firstVar
 	}
 
-	if p.t.Get().Kind == "in" {
+	if p.t.Get().Kind == lexer.TOKEN_IN {
 		p.t.Eat()
 	} else {
 		Stop("Expected 'in' keyword in for in statement in line " + fmt.Sprint(p.t.Get().Line))
@@ -300,17 +300,17 @@ func (p *Parser) ParseForInStmt() ForInSatementNode {
 
 	node.Iterator = iterator
 
-	if p.t.Eat().Kind != "lbrace" {
+	if p.t.Eat().Kind != lexer.TOKEN_LBRACE {
 		Stop("Expected '{' in for in statement in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
 	for {
 
-		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
@@ -318,7 +318,7 @@ func (p *Parser) ParseForInStmt() ForInSatementNode {
 		node.Body = append(node.Body, p.ParseStmt())
 	}
 
-	if p.t.Get().Kind != "rbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_RBRACE {
 		Stop("Expected '}' in for in statement in line " + fmt.Sprint(p.t.Get().Line))
 	} else {
 		p.t.Eat()
@@ -354,41 +354,41 @@ func (p *Parser) ParseStructDeclaration() StructDeclarationNode {
 
 	// struct name
 
-	if p.t.Get().Kind != "identifier" {
+	if p.t.Get().Kind != lexer.TOKEN_IDENTIFIER {
 		Stop("Expected identifier after 'struct' keyword in struct declaration in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
 	node.Name = p.t.Eat().Lexeme
 	node.Properties = make([]string, 0)
 
-	if p.t.Get().Kind != "lbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_LBRACE {
 		Stop("Expected '{' in struct declaration in line " + fmt.Sprint(node.Line))
 	}
 
 	p.t.Eat()
 
 	for {
-		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
 
-		if p.t.Get().Kind != "identifier" {
-			Stop("Expected identifier in struct declaration but found: " + p.t.Get().Kind + " in line " + fmt.Sprint(node.Line))
+		if p.t.Get().Kind != lexer.TOKEN_IDENTIFIER {
+			Stop("Expected identifier in struct declaration but found: " + lexer.GetTokenName(p.t.Get().Kind) + " in line " + fmt.Sprint(node.Line))
 		}
 
 		node.Properties = append(node.Properties, p.t.Eat().Lexeme)
 
-		if p.t.Get().Kind == "comma" {
+		if p.t.Get().Kind == lexer.TOKEN_COMMA {
 			p.t.Eat()
 		}
 	}
 
-	if p.t.Get().Kind != "rbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_RBRACE {
 		Stop("Expected '}' in struct declaration in line " + fmt.Sprint(node.Line))
 	}
 	p.t.Eat()
@@ -401,10 +401,10 @@ func (p *Parser) ParseFunctionDeclaration() FunctionDeclarationNode {
 	var node FunctionDeclarationNode = FunctionDeclarationNode{}
 	node.Body = make([]Stmt, 0)
 
-	if p.t.Get().Kind == "identifier" {
+	if p.t.Get().Kind == lexer.TOKEN_IDENTIFIER {
 		node.Name = p.t.Get().Lexeme
 		node.Line = p.t.Eat().Line
-	} else if p.t.Get().Kind == "lpar" {
+	} else if p.t.Get().Kind == lexer.TOKEN_LPAR {
 		node.Name = ""
 		node.Line = p.t.Get().Line
 	} else {
@@ -417,7 +417,7 @@ func (p *Parser) ParseFunctionDeclaration() FunctionDeclarationNode {
 		node.Parameters = append(node.Parameters, arg.(IdentifierNode).Value)
 	}
 
-	if p.t.Get().Kind != "lbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_LBRACE {
 		Stop("Expected '{' in function declaration in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
@@ -425,11 +425,11 @@ func (p *Parser) ParseFunctionDeclaration() FunctionDeclarationNode {
 
 	for {
 
-		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
@@ -437,11 +437,11 @@ func (p *Parser) ParseFunctionDeclaration() FunctionDeclarationNode {
 
 	}
 
-	if p.t.Get().Kind == "eol" {
+	if p.t.Get().Kind == lexer.TOKEN_EOL {
 		p.t.Eat()
 	}
 
-	if p.t.Get().Kind != "rbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_RBRACE {
 		Stop("Expected '}' in function declaration in line " + fmt.Sprint(p.t.Get().Line))
 	} else {
 		p.t.Eat()
@@ -467,11 +467,11 @@ func (p *Parser) ParseIfStmt() IfStatementNode {
 	p.t.Eat() // open brace
 
 	for {
-		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
@@ -479,7 +479,7 @@ func (p *Parser) ParseIfStmt() IfStatementNode {
 		node.Body = append(node.Body, p.ParseStmt())
 	}
 
-	if p.t.Get().Kind == "eol" {
+	if p.t.Get().Kind == lexer.TOKEN_EOL {
 		p.t.Eat()
 	}
 	p.t.Eat() // close brace
@@ -488,7 +488,7 @@ func (p *Parser) ParseIfStmt() IfStatementNode {
 
 	node.ElseIf = make([]IfStatementNode, 0)
 	for {
-		if !(p.t.Get().Kind == "else" && p.t.GetNext().Lexeme == "if") {
+		if !(p.t.Get().Kind == lexer.TOKEN_ELSE && p.t.GetNext().Kind == lexer.TOKEN_IF) {
 			break
 		}
 
@@ -506,11 +506,11 @@ func (p *Parser) ParseIfStmt() IfStatementNode {
 
 		p.t.Eat() // open brace
 		for {
-			if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+			if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 				break
 			}
 
-			if p.t.Get().Kind == "eol" {
+			if p.t.Get().Kind == lexer.TOKEN_EOL {
 				p.t.Eat()
 				continue
 			}
@@ -518,26 +518,26 @@ func (p *Parser) ParseIfStmt() IfStatementNode {
 			elseifnode.Body = append(elseifnode.Body, p.ParseStmt())
 		}
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 		}
-		if p.t.Get().Kind == "rbrace" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE {
 			p.t.Eat()
 		}
 
 		node.ElseIf = append(node.ElseIf, elseifnode)
 	}
 
-	if p.t.Get().Kind == "else" {
+	if p.t.Get().Kind == lexer.TOKEN_ELSE {
 		node.ElseBody = make([]Stmt, 0)
 		p.t.Eat()
 		p.t.Eat()
 		for {
-			if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+			if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 				break
 			}
 
-			if p.t.Get().Kind == "eol" {
+			if p.t.Get().Kind == lexer.TOKEN_EOL {
 				p.t.Eat()
 				continue
 			}
@@ -546,7 +546,7 @@ func (p *Parser) ParseIfStmt() IfStatementNode {
 		}
 
 		p.t.Eat()
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 		}
 	}
@@ -575,7 +575,7 @@ func (p *Parser) ParseVarDeclaration() Stmt {
 
 	node.Left = IdentifierNode{Value: identifier.Lexeme}
 
-	if p.t.Get().Kind == "eol" {
+	if p.t.Get().Kind == lexer.TOKEN_EOL {
 		node.Right = NothingNode{Line: line}
 	} else {
 		operator := p.t.Eat()
@@ -610,7 +610,7 @@ func (p *Parser) ParseAnonFnExp() Exp {
 		node.Parameters = append(node.Parameters, arg.(IdentifierNode).Value)
 	}
 
-	if p.t.Get().Kind != "lbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_LBRACE {
 		Stop("Expected '{' in anon function declaration in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
@@ -618,11 +618,11 @@ func (p *Parser) ParseAnonFnExp() Exp {
 
 	for {
 
-		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
@@ -630,11 +630,11 @@ func (p *Parser) ParseAnonFnExp() Exp {
 
 	}
 
-	if p.t.Get().Kind == "eol" {
+	if p.t.Get().Kind == lexer.TOKEN_EOL {
 		p.t.Eat()
 	}
 
-	if p.t.Get().Kind != "rbrace" {
+	if p.t.Get().Kind != lexer.TOKEN_RBRACE {
 		Stop("Expected '}' in function declaration in line " + fmt.Sprint(p.t.Get().Line))
 	} else {
 		p.t.Eat()
@@ -703,7 +703,7 @@ func (p *Parser) ParseDictionaryInitialization() Exp {
 
 	for {
 
-		if p.t.Get().Kind == "rbrace" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACE || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
@@ -713,7 +713,7 @@ func (p *Parser) ParseDictionaryInitialization() Exp {
 		}
 
 		// ignoramos fin de linea
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
@@ -734,7 +734,7 @@ func (p *Parser) ParseDictionaryInitialization() Exp {
 
 	}
 
-	if p.t.Get().Kind == "eol" {
+	if p.t.Get().Kind == lexer.TOKEN_EOL {
 		p.t.Eat()
 	}
 	p.t.Eat()
@@ -948,7 +948,7 @@ func (p *Parser) ParseIndexAccessExp() Exp {
 
 func (p *Parser) parseUnaryExp() Exp {
 
-	if p.t.Get().Lexeme == "-" && p.t.Get().Kind == "operator" {
+	if p.t.Get().Lexeme == "-" && p.t.Get().Kind == lexer.TOKEN_OPERATOR {
 		op := p.t.Eat()
 		n := UnaryExpNode{}
 		n.Line = op.Line
@@ -970,17 +970,17 @@ func (p *Parser) parsePrimaryExp() Exp {
 
 	token := p.t.Eat()
 
-	if token.Kind == "identifier" {
+	if token.Kind == lexer.TOKEN_IDENTIFIER {
 		return IdentifierNode{Value: token.Lexeme, Line: token.Line}
-	} else if token.Kind == "number" {
+	} else if token.Kind == lexer.TOKEN_NUMBER {
 		return NumberNode{Value: token.Lexeme, Line: token.Line}
-	} else if token.Kind == "Nothing" {
+	} else if token.Kind == lexer.TOKEN_NOTHING {
 		return NothingNode{Line: token.Line}
-	} else if token.Kind == "string" {
+	} else if token.Kind == lexer.TOKEN_STRING {
 		return StringNode{Value: token.Lexeme, Line: token.Line}
-	} else if token.Kind == "lbracket" {
+	} else if token.Kind == lexer.TOKEN_LBRACKET {
 		return p.ParseArrayInitializationExp()
-	} else if token.Kind == "boolean" {
+	} else if token.Kind == lexer.TOKEN_BOOLEAN {
 		var value bool
 		if token.Lexeme == "true" {
 			value = true
@@ -988,14 +988,14 @@ func (p *Parser) parsePrimaryExp() Exp {
 			value = false
 		}
 		return BooleanNode{Value: value, Line: token.Line}
-	} else if token.Kind == "lpar" {
+	} else if token.Kind == lexer.TOKEN_LPAR {
 		v := p.ParseExp()
 		p.t.Eat()
 		return v
-	} else if token.Kind == "eof" {
+	} else if token.Kind == lexer.TOKEN_EOF {
 		Stop("Unexpected end of file in line " + fmt.Sprint(token.Line))
 		return nil
-	} else if token.Kind == "eol" {
+	} else if token.Kind == lexer.TOKEN_EOL {
 		Stop("Unexpected line break in line " + fmt.Sprint(token.Line))
 		return nil
 	} else {
@@ -1024,7 +1024,7 @@ func (p *Parser) ParseCallExpr(member Exp) Exp {
 
 func (p *Parser) ParseArgs() []Exp {
 
-	if p.t.Get().Kind != "lpar" {
+	if p.t.Get().Kind != lexer.TOKEN_LPAR {
 		Stop("Expected '(' after function arguments in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
@@ -1073,16 +1073,16 @@ func (p *Parser) ParseArrayInitializationExp() Exp {
 
 	for {
 
-		if p.t.Get().Kind == "rbracket" || p.t.Get().Kind == "eof" {
+		if p.t.Get().Kind == lexer.TOKEN_RBRACKET || p.t.Get().Kind == lexer.TOKEN_EOF {
 			break
 		}
 
-		if p.t.Get().Kind == "comma" {
+		if p.t.Get().Kind == lexer.TOKEN_COMMA {
 			p.t.Eat()
 			continue
 		}
 
-		if p.t.Get().Kind == "eol" {
+		if p.t.Get().Kind == lexer.TOKEN_EOL {
 			p.t.Eat()
 			continue
 		}
@@ -1091,7 +1091,7 @@ func (p *Parser) ParseArrayInitializationExp() Exp {
 
 	}
 
-	if p.t.Get().Kind != "rbracket" {
+	if p.t.Get().Kind != lexer.TOKEN_RBRACKET {
 		Stop("Expected ']' in line " + fmt.Sprint(p.t.Get().Line))
 	} else {
 		p.t.Eat()

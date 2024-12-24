@@ -38,18 +38,20 @@ func (e *Evaluator) Evaluate(env *environment.Environment) *environment.Environm
 // Evaluate a single Statement node
 func (e *Evaluator) EvaluateStmt(node parser.Stmt, env *environment.Environment) values.RuntimeValue {
 	switch n := node.(type) {
+	case parser.ExpressionStmtNode:
+		return e.EvaluateExpressionStmt(n, env)
 	case parser.VarDeclarationNode:
-		return e.EvaluateVarDeclaration(node.(parser.VarDeclarationNode), env)
+		return e.EvaluateVarDeclaration(n, env)
 	case parser.IfStatementNode:
-		return e.EvaluateIfStmt(node.(parser.IfStatementNode), env)
+		return e.EvaluateIfStmt(n, env)
 	case parser.ForInSatementNode:
-		return e.EvaluateForInStmt(node.(parser.ForInSatementNode), env)
+		return e.EvaluateForInStmt(n, env)
 	case parser.FunctionDeclarationNode:
-		return e.EvaluateFunctionDeclarationStmt(node.(parser.FunctionDeclarationNode), env)
+		return e.EvaluateFunctionDeclarationStmt(n, env)
 	case parser.LoopStmtNode:
-		return e.EvaluateLoopStmt(node.(parser.LoopStmtNode), env)
+		return e.EvaluateLoopStmt(n, env)
 	case parser.StructMethodDeclarationNode:
-		return e.EvaluateStructMethodExpression(node.(parser.StructMethodDeclarationNode), env)
+		return e.EvaluateStructMethodExpression(n, env)
 	case parser.BreakNode:
 		return e.EvaluateBreakNode(n, env)
 	case parser.ContinueNode:
@@ -57,11 +59,11 @@ func (e *Evaluator) EvaluateStmt(node parser.Stmt, env *environment.Environment)
 	case parser.ReturnNode:
 		return e.EvaluateReturnNode(n, env)
 	case parser.TryCatchNode:
-		return e.EvaluateTryCatchNode(node.(parser.TryCatchNode), env)
+		return e.EvaluateTryCatchNode(n, env)
 	case parser.StructDeclarationNode:
-		return e.EvaluatStructDeclarationStmt(node.(parser.StructDeclarationNode), env)
+		return e.EvaluatStructDeclarationStmt(n, env)
 	case parser.ImportNode:
-		return e.EvaluateImportNode(node.(parser.ImportNode), env)
+		return e.EvaluateImportNode(n, env)
 	default: // If is not a statement, it is a expressionStmt
 		return e.EvaluateExpressionStmt(node.(parser.ExpressionStmtNode), env)
 	}
@@ -147,14 +149,7 @@ func (e Evaluator) EvaluateLoopStmt(node parser.LoopStmtNode, env *environment.E
 	// Creating new environment
 	newenv := environment.NewEnvironment(env)
 
-	// Flag for Break statement
-	keepLooping := true
-
 	for {
-
-		if keepLooping == false {
-			return nil
-		}
 
 		// Loop through body
 		for _, stmt := range node.Body {
@@ -1005,113 +1000,6 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 
 	return right
 }
-
-/*
-
-You cant compare values of different types unless one of them is Nothing
-
-Nothins is nothing and should not be converted to any value
-The unique way to make "a == Nothing -> True" is when 'a' is Nothing too
-
-"" == Nothing -> False
--1 == Nothing -> False
-0 == Nothing -> False
-false == Nothing -> False
-Nothing == Nothing -> True
-
-
-
-
-*/
-
-// func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *environment.Environment) values.RuntimeValue {
-
-// 	left := e.EvaluateExpression(node.Left, env)
-// 	right := e.EvaluateExpression(node.Right, env)
-
-// 	if left.GetType() == "ErrorValue" {
-// 		return left
-// 	}
-// 	if right.GetType() == "ErrorValue" {
-// 		return right
-// 	}
-
-// 	op := node.Operator
-
-// 	types := left.GetType()
-
-// 	if types != right.GetType() {
-// 		if types != "NothingValue" && right.GetType() != "NothingValue" {
-// 			return e.Panic("Type mismatch: "+types+" and "+right.GetType(), node.Line, env)
-// 		}
-// 	}
-
-// 	if types != "NumberValue" && types != "StringValue" && types != "BooleanValue" && types != "NothingValue" {
-// 		return e.Panic("Cant use operator "+op+" with type "+types, node.Line, env)
-// 	}
-
-// 	if op == "+" {
-
-// 		if types == "StringValue" {
-// 			return values.StringValue{Value: left.GetStr() + right.GetStr(), Mutable: false}
-// 		} else if types == "NumberValue" {
-// 			return values.NumberValue{Value: left.GetNumber() + right.GetNumber()}
-// 		}
-// 	} else if op == "-" {
-// 		if types == "NumberValue" {
-// 			return values.NumberValue{Value: left.GetNumber() - right.GetNumber()}
-// 		} else {
-// 			return e.Panic("Cant subtract with strings", node.Line, env)
-// 		}
-// 	} else if op == "*" {
-// 		if types == "NumberValue" {
-// 			return values.NumberValue{Value: left.GetNumber() * right.GetNumber()}
-// 		} else {
-// 			e.Panic("Cant multiply with strings", node.Line, env)
-// 		}
-// 	} else if op == "/" {
-// 		if types == "NumberValue" {
-// 			return values.NumberValue{Value: left.GetNumber() / right.GetNumber()}
-// 		} else {
-// 			e.Panic("Cant divide with string", node.Line, env)
-// 		}
-// 	} else if op == "==" {
-// 		if types == "NumberValue" {
-// 			return values.BooleanValue{Value: left.GetNumber() == right.GetNumber()}
-// 		} else if types == "StringValue" {
-// 			return values.BooleanValue{Value: left.GetStr() == right.GetStr()}
-// 		} else if types == "BooleanValue" {
-// 			return values.BooleanValue{Value: left.GetBool() == right.GetBool()}
-// 		}
-// 	} else if op == ">" {
-// 		if types == "NumberValue" {
-// 			return values.BooleanValue{Value: left.GetNumber() > right.GetNumber()}
-// 		}
-// 	} else if op == "<" {
-// 		if types == "NumberValue" {
-// 			return values.BooleanValue{Value: left.GetNumber() < right.GetNumber()}
-// 		}
-// 	} else if op == "<=" {
-// 		if types == "NumberValue" {
-// 			return values.BooleanValue{Value: left.GetNumber() <= right.GetNumber()}
-// 		}
-// 	} else if op == ">=" {
-// 		if types == "NumberValue" {
-// 			return values.BooleanValue{Value: left.GetNumber() >= right.GetNumber()}
-// 		}
-// 	} else if op == "and" {
-// 		if types == "BooleanValue" {
-// 			return values.BooleanValue{Value: left.GetBool() && right.GetBool()}
-// 		}
-// 	} else if op == "or" {
-// 		if types == "BooleanValue" {
-// 			return values.BooleanValue{Value: left.GetBool() || right.GetBool()}
-// 		}
-// 	}
-
-// 	return nil
-
-// }
 
 func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *environment.Environment) values.RuntimeValue {
 

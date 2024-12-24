@@ -100,6 +100,26 @@ func (s StringValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 				return StringValue{Value: strings.Trim(s.Value, needed)}
 			},
 		},
+		"toArray": NativeFunctionValue{
+			Value: func(args []RuntimeValue) RuntimeValue {
+
+				sep := ""
+
+				if len(args) > 0 {
+					sep = args[0].GetStr()
+				}
+
+				arr := ArrayValue{Value: make([]RuntimeValue, 0)}
+
+				values := strings.Split(s.Value, sep)
+
+				for _, value := range values {
+					arr.Value = append(arr.Value, StringValue{Value: value})
+				}
+
+				return &arr
+			},
+		},
 		"slice": NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
 				length := len(s.Value)

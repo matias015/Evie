@@ -11,7 +11,7 @@ type TokenIterator struct {
 
 func (t TokenIterator) Get() lexer.Token {
 	if t.IsOutOfBounds() {
-		return lexer.Token{Kind: "eof"}
+		return lexer.Token{Kind: lexer.TOKEN_EOF}
 	}
 	char := t.Items[t.Index]
 	return char

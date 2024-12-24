@@ -22,7 +22,7 @@ func Tokenize(input string) []Token {
 	line := 1
 
 	tokens = append(tokens, Token{
-		Kind:   "init",
+		Kind:   TOKEN_INIT,
 		Lexeme: "init",
 		Line:   line,
 		Column: 0,
@@ -66,9 +66,9 @@ func Tokenize(input string) []Token {
 
 				lastAdded := tokens[len(tokens)-1].Kind
 
-				if lastAdded != "eol" && lastAdded != "rbrace" && lastAdded != "lbrace" && lastAdded != "rbracket" && lastAdded != "lbracket" && lastAdded != "comma" {
+				if lastAdded != TOKEN_EOL && lastAdded != TOKEN_RBRACE && lastAdded != TOKEN_LBRACE && lastAdded != TOKEN_RBRACKET && lastAdded != TOKEN_LBRACKET && lastAdded != TOKEN_COMMA {
 					tokens = append(tokens, Token{
-						Kind:   "eol",
+						Kind:   TOKEN_EOL,
 						Lexeme: "eol",
 						Line:   line,
 						Column: 0,
@@ -86,9 +86,9 @@ func Tokenize(input string) []Token {
 			line += 1
 			lastAdded := tokens[len(tokens)-1].Kind
 
-			if lastAdded != "eol" && lastAdded != "rbrace" && lastAdded != "lbrace" && lastAdded != "rbracket" && lastAdded != "lbracket" && lastAdded != "comma" {
+			if lastAdded != TOKEN_EOL && lastAdded != TOKEN_RBRACE && lastAdded != TOKEN_LBRACE && lastAdded != TOKEN_RBRACKET && lastAdded != TOKEN_LBRACKET && lastAdded != TOKEN_COMMA {
 				tokens = append(tokens, Token{
-					Kind:   "eol",
+					Kind:   TOKEN_EOL,
 					Lexeme: "eol",
 					Line:   line,
 					Column: 0,
@@ -151,7 +151,7 @@ func Tokenize(input string) []Token {
 			}
 
 			tokens = append(tokens, Token{
-				Kind:   "number",
+				Kind:   TOKEN_NUMBER,
 				Lexeme: word,
 				Line:   line,
 				Column: 0,
@@ -175,6 +175,16 @@ func Tokenize(input string) []Token {
 						t.Eat()
 						word += string('\n')
 						continue
+					} else if string(t.Get()) == "\\" && string(t.GetNext()) == "r" {
+						t.Eat()
+						t.Eat()
+						word += string('\r')
+						continue
+					} else if string(t.Get()) == "\\" && string(t.GetNext()) == "t" {
+						t.Eat()
+						t.Eat()
+						word += string('\t')
+						continue
 					}
 
 					if t.Get() == '\r' && t.GetNext() == '\n' {
@@ -192,7 +202,7 @@ func Tokenize(input string) []Token {
 			}
 
 			tokens = append(tokens, Token{
-				Kind:   "string",
+				Kind:   TOKEN_STRING,
 				Lexeme: word,
 				Line:   line,
 				Column: 0,
@@ -208,7 +218,7 @@ func Tokenize(input string) []Token {
 			if t.HasNext() && t.Get() == '=' {
 				t.Eat()
 				tokens = append(tokens, Token{
-					Kind:   "operator",
+					Kind:   TOKEN_OPERATOR,
 					Lexeme: "==",
 					Line:   line,
 					Column: 0,
@@ -216,7 +226,7 @@ func Tokenize(input string) []Token {
 				continue
 			} else {
 				tokens = append(tokens, Token{
-					Kind:   "assign",
+					Kind:   TOKEN_ASSIGN,
 					Lexeme: "=",
 					Line:   line,
 					Column: 0,
@@ -229,7 +239,7 @@ func Tokenize(input string) []Token {
 		if token == '{' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "lbrace",
+				Kind:   TOKEN_LBRACE,
 				Lexeme: "{",
 				Line:   line,
 				Column: 0,
@@ -241,7 +251,7 @@ func Tokenize(input string) []Token {
 		if token == '}' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "rbrace",
+				Kind:   TOKEN_RBRACE,
 				Lexeme: "}",
 				Line:   line,
 				Column: 0,
@@ -253,7 +263,7 @@ func Tokenize(input string) []Token {
 		if token == '[' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "lbracket",
+				Kind:   TOKEN_LBRACKET,
 				Lexeme: "[",
 				Line:   line,
 				Column: 0,
@@ -265,7 +275,7 @@ func Tokenize(input string) []Token {
 		if token == ']' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "rbracket",
+				Kind:   TOKEN_RBRACKET,
 				Lexeme: "]",
 				Line:   line,
 				Column: 0,
@@ -277,7 +287,7 @@ func Tokenize(input string) []Token {
 		if token == ',' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "comma",
+				Kind:   TOKEN_COMMA,
 				Lexeme: ",",
 				Line:   line,
 				Column: 0,
@@ -289,7 +299,7 @@ func Tokenize(input string) []Token {
 		if token == ':' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "colon",
+				Kind:   TOKEN_COLON,
 				Lexeme: ":",
 				Line:   line,
 				Column: 0,
@@ -301,7 +311,7 @@ func Tokenize(input string) []Token {
 		if token == '?' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "ternaryexp",
+				Kind:   TOKEN_TERNARY,
 				Lexeme: "?",
 				Line:   line,
 				Column: 0,
@@ -313,7 +323,7 @@ func Tokenize(input string) []Token {
 		if token == '(' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "lpar",
+				Kind:   TOKEN_LPAR,
 				Lexeme: "(",
 				Line:   line,
 				Column: 0,
@@ -325,7 +335,7 @@ func Tokenize(input string) []Token {
 		if token == ')' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "rpar",
+				Kind:   TOKEN_RPAR,
 				Lexeme: ")",
 				Line:   line,
 				Column: 0,
@@ -337,7 +347,7 @@ func Tokenize(input string) []Token {
 		if token == '.' {
 			t.Eat()
 			tokens = append(tokens, Token{
-				Kind:   "dot",
+				Kind:   TOKEN_DOT,
 				Lexeme: ".",
 				Line:   line,
 				Column: 0,
@@ -351,14 +361,14 @@ func Tokenize(input string) []Token {
 			if t.HasNext() && t.Get() == '=' {
 				t.Eat()
 				tokens = append(tokens, Token{
-					Kind:   "operator",
+					Kind:   TOKEN_OPERATOR,
 					Lexeme: firstSymbol + "=",
 					Line:   line,
 					Column: 0,
 				})
 			} else {
 				tokens = append(tokens, Token{
-					Kind:   "operator",
+					Kind:   TOKEN_OPERATOR,
 					Lexeme: firstSymbol,
 					Line:   line,
 					Column: 0,
@@ -374,14 +384,14 @@ func Tokenize(input string) []Token {
 				if t.HasNext() && t.Get() == '>' {
 					t.Eat()
 					tokens = append(tokens, Token{
-						Kind:   "arrowleft",
+						Kind:   TOKEN_LARROW,
 						Lexeme: "->",
 						Line:   line,
 						Column: 0,
 					})
 				} else {
 					tokens = append(tokens, Token{
-						Kind:   "operator",
+						Kind:   TOKEN_OPERATOR,
 						Lexeme: "-",
 						Line:   line,
 						Column: 0,
@@ -389,7 +399,7 @@ func Tokenize(input string) []Token {
 				}
 			} else {
 				tokens = append(tokens, Token{
-					Kind:   "operator",
+					Kind:   TOKEN_OPERATOR,
 					Lexeme: string(token),
 					Line:   line,
 					Column: 0,
@@ -408,7 +418,7 @@ func Tokenize(input string) []Token {
 	}
 
 	tokens = append(tokens, Token{
-		Kind:   "eof",
+		Kind:   TOKEN_EOF,
 		Lexeme: "",
 		Line:   line,
 		Column: 0,
@@ -417,55 +427,55 @@ func Tokenize(input string) []Token {
 }
 
 func TokenFromWord(w string, l int) Token {
-	Kind := "identifier"
+	var Kind TokenType
 	if w == "var" {
-		Kind = w
+		Kind = TOKEN_VAR
 	} else if w == "fn" {
-		Kind = w
+		Kind = TOKEN_FN
 	} else if w == "if" {
-		Kind = w
+		Kind = TOKEN_IF
 	} else if w == "Nothing" {
-		Kind = w
+		Kind = TOKEN_NOTHING
 	} else if w == "as" {
-		Kind = w
+		Kind = TOKEN_AS
 	} else if w == "else" {
-		Kind = w
+		Kind = TOKEN_ELSE
 	} else if w == "elseif" {
-		Kind = w
+		Kind = TOKEN_ELSEIF
 	} else if w == "struct" {
-		Kind = w
+		Kind = TOKEN_STRUCT
 	} else if w == "for" {
-		Kind = w
+		Kind = TOKEN_FOR
 	} else if w == "continue" {
-		Kind = w
+		Kind = TOKEN_CONTINUE
 	} else if w == "break" {
-		Kind = w
+		Kind = TOKEN_BREAK
 	} else if w == "in" {
-		Kind = w
+		Kind = TOKEN_IN
 	} else if w == "or" {
-		Kind = w
+		Kind = TOKEN_OR
 	} else if w == "not" {
-		Kind = w
+		Kind = TOKEN_NOT
 	} else if w == "and" {
-		Kind = w
+		Kind = TOKEN_AND
 	} else if w == "false" || w == "true" {
-		Kind = "boolean"
+		Kind = TOKEN_BOOLEAN
 	} else if w == "nothing" {
-		Kind = w
+		Kind = TOKEN_NOTHING
 	} else if w == "return" {
-		Kind = w
+		Kind = TOKEN_RETURN
 	} else if w == "try" {
-		Kind = w
+		Kind = TOKEN_TRY
 	} else if w == "catch" {
-		Kind = w
+		Kind = TOKEN_CATCH
 	} else if w == "finally" {
-		Kind = w
+		Kind = TOKEN_FINALLY
 	} else if w == "import" {
-		Kind = w
+		Kind = TOKEN_IMPORT
 	} else if w == "loop" {
-		Kind = w
+		Kind = TOKEN_LOOP
 	} else {
-		Kind = "identifier"
+		Kind = TOKEN_IDENTIFIER
 	}
 
 	return Token{

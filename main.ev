@@ -1,6 +1,0 @@
-
-import os
-
-var res = os.exec("cmd", "/C", "echo", "2")
-
-print(res)

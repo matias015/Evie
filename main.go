@@ -31,7 +31,7 @@ func main() {
 	// litter.Dump(tokens)
 	// os.Exit(1)
 	ast := parser.NewParser(tokens).GetAST()
-	// litter.Dump(ast[0])
+	// litter.Dump(ast[1])
 	// os.Exit(1)
 
 	parentEnv := environment.NewEnvironment(nil)
@@ -44,6 +44,7 @@ func main() {
 	// start := time.Now()
 	intr := evruntime.Evaluator{Nodes: ast}
 	intr.CallStack = make([]string, 0)
+
 	intr.Evaluate(env)
 	// evalTime := time.Since(start).Microseconds()
 
