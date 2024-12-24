@@ -1,54 +1,92 @@
 package parser
 
+type NodeType int
+
 // INTERFACES
 type Stmt interface {
-	StmtType() string
+	StmtType() NodeType
 }
 
 type Exp interface {
-	ExpType() string
+	ExpType() NodeType
 }
+
+const (
+	NodeExpStmt NodeType = iota
+	NodeNumber
+	NodeString
+	NodeBoolean
+	NodeIdentifier
+	NodeNothing
+	NodeAssignment
+	NodeBinaryExp
+	NodeUnaryExp
+	NodeCallExp
+	NodeArrayExp
+	NodeIndexAccessExp
+	NodeDictionaryExp
+	NodeObjectInitExp
+	NodeMemberExp
+	NodeSliceExp
+	NodeTernaryExp
+
+	NodeStructDeclaration
+
+	NodeVarDeclaration
+	NodeIfStatement
+	NodeForInStatement
+	NodeLoopStatement
+	NodeFunctionDeclaration
+	NodeAnonFunctionDeclaration
+	NodeReturnStatement
+	NodeBreakStatement
+	NodeContinueStatement
+	NodeTryCatch
+	NodeStructMethodDeclaration
+	NodeTryCatchStatement
+	NodeImportStatement
+)
 
 // EXPRESIONES
 type ExpressionStmtNode struct {
 	Expression Exp
 }
 
-func (e ExpressionStmtNode) StmtType() string { return "ExpressionStmtNode" }
+func (e ExpressionStmtNode) StmtType() NodeType { return NodeExpStmt }
 
 type NumberNode struct {
 	Value string
 	Line  int
 }
 
-func (n NumberNode) ExpType() string { return "NumberNode" }
+func (n NumberNode) ExpType() NodeType { return NodeNumber }
 
 type StringNode struct {
 	Value string
 	Line  int
 }
 
-func (n StringNode) ExpType() string { return "StringNode" }
+func (n StringNode) ExpType() NodeType { return NodeString }
 
 type BooleanNode struct {
 	Value bool
 	Line  int
 }
 
-func (n BooleanNode) ExpType() string { return "BooleanNode" }
+func (n BooleanNode) ExpType() NodeType { return NodeBoolean }
 
 type IdentifierNode struct {
 	Value string
 	Line  int
 }
 
-func (n IdentifierNode) ExpType() string { return "IdentifierNode" }
+func (n IdentifierNode) ExpType() NodeType { return NodeIdentifier }
 
 type NothingNode struct {
 	Line int
 }
 
-func (n NothingNode) ExpType() string { return "NothingNode" }
+func (n NothingNode) ExpType() NodeType { return NodeNothing }
 
 type AssignmentNode struct {
 	Left     Exp
@@ -57,7 +95,7 @@ type AssignmentNode struct {
 	Line     int
 }
 
-func (n AssignmentNode) ExpType() string { return "AssignmentNode" }
+func (n AssignmentNode) ExpType() NodeType { return NodeAssignment }
 
 type BinaryExpNode struct {
 	Left     Exp
@@ -66,7 +104,7 @@ type BinaryExpNode struct {
 	Line     int
 }
 
-func (n BinaryExpNode) ExpType() string { return "BinaryExpNode" }
+func (n BinaryExpNode) ExpType() NodeType { return NodeBinaryExp }
 
 type UnaryExpNode struct {
 	Operator string
@@ -74,7 +112,7 @@ type UnaryExpNode struct {
 	Line     int
 }
 
-func (n UnaryExpNode) ExpType() string { return "UnaryExpNode" }
+func (n UnaryExpNode) ExpType() NodeType { return NodeUnaryExp }
 
 type CallExpNode struct {
 	Name Exp
@@ -82,14 +120,14 @@ type CallExpNode struct {
 	Line int
 }
 
-func (n CallExpNode) ExpType() string { return "CallExpNode" }
+func (n CallExpNode) ExpType() NodeType { return NodeCallExp }
 
 type ArrayExpNode struct {
 	Value []Exp
 	Line  int
 }
 
-func (n ArrayExpNode) ExpType() string { return "ArrayExpNode" }
+func (n ArrayExpNode) ExpType() NodeType { return NodeArrayExp }
 
 type IndexAccessExpNode struct {
 	Left  Exp
@@ -97,14 +135,14 @@ type IndexAccessExpNode struct {
 	Line  int
 }
 
-func (n IndexAccessExpNode) ExpType() string { return "IndexAccessExpNode" }
+func (n IndexAccessExpNode) ExpType() NodeType { return NodeIndexAccessExp }
 
 type DictionaryExpNode struct {
 	Value map[string]Exp
 	Line  int
 }
 
-func (n DictionaryExpNode) ExpType() string { return "DictionaryExpNode" }
+func (n DictionaryExpNode) ExpType() NodeType { return NodeDictionaryExp }
 
 // Struct Initialization, NOT ANY OBJECT LIKE JS
 type ObjectInitExpNode struct {
@@ -113,7 +151,7 @@ type ObjectInitExpNode struct {
 	Line   int
 }
 
-func (n ObjectInitExpNode) ExpType() string { return "ObjectInitExpNode" }
+func (n ObjectInitExpNode) ExpType() NodeType { return NodeObjectInitExp }
 
 // Struct Initialization, NOT ANY OBJECT LIKE JS
 type MemberExpNode struct {
@@ -122,7 +160,7 @@ type MemberExpNode struct {
 	Line   int
 }
 
-func (n MemberExpNode) ExpType() string { return "MemberExpNode" }
+func (n MemberExpNode) ExpType() NodeType { return NodeMemberExp }
 
 // slice
 
@@ -133,7 +171,7 @@ type SliceExpNode struct {
 	Line int
 }
 
-func (n SliceExpNode) ExpType() string { return "SliceExpNode" }
+func (n SliceExpNode) ExpType() NodeType { return NodeSliceExp }
 
 type TernaryExpNode struct {
 	Condition Exp
@@ -142,7 +180,7 @@ type TernaryExpNode struct {
 	Line      int
 }
 
-func (n TernaryExpNode) ExpType() string { return "TernaryExpNode" }
+func (n TernaryExpNode) ExpType() NodeType { return NodeTernaryExp }
 
 // STATEMENTS
 
@@ -153,7 +191,7 @@ type VarDeclarationNode struct {
 	Line     int
 }
 
-func (n VarDeclarationNode) StmtType() string { return "VarDeclarationNode" }
+func (n VarDeclarationNode) StmtType() NodeType { return NodeVarDeclaration }
 
 type IfStatementNode struct {
 	Condition Exp
@@ -163,7 +201,7 @@ type IfStatementNode struct {
 	Line      int
 }
 
-func (n IfStatementNode) StmtType() string { return "IfStatementNode" }
+func (n IfStatementNode) StmtType() NodeType { return NodeIfStatement }
 
 type FunctionDeclarationNode struct {
 	Name       string
@@ -172,7 +210,7 @@ type FunctionDeclarationNode struct {
 	Line       int
 }
 
-func (n FunctionDeclarationNode) StmtType() string { return "FunctionDeclarationNode" }
+func (n FunctionDeclarationNode) StmtType() NodeType { return NodeFunctionDeclaration }
 
 type AnonFunctionDeclarationNode struct {
 	Body       []Stmt
@@ -180,7 +218,7 @@ type AnonFunctionDeclarationNode struct {
 	Line       int
 }
 
-func (n AnonFunctionDeclarationNode) ExpType() string { return "FunctionDeclarationNode" }
+func (n AnonFunctionDeclarationNode) ExpType() NodeType { return NodeFunctionDeclaration }
 
 type StructDeclarationNode struct {
 	Name       string
@@ -188,7 +226,7 @@ type StructDeclarationNode struct {
 	Line       int
 }
 
-func (n StructDeclarationNode) StmtType() string { return "StructDeclarationNode" }
+func (n StructDeclarationNode) StmtType() NodeType { return NodeStructDeclaration }
 
 type StructMethodDeclarationNode struct {
 	Struct   string
@@ -196,7 +234,7 @@ type StructMethodDeclarationNode struct {
 	Line     int
 }
 
-func (n StructMethodDeclarationNode) StmtType() string { return "StructMethodDeclarationNode" }
+func (n StructMethodDeclarationNode) StmtType() NodeType { return NodeStructMethodDeclaration }
 
 type ForInSatementNode struct {
 	Iterator     Exp
@@ -206,26 +244,26 @@ type ForInSatementNode struct {
 	Line         int
 }
 
-func (n ForInSatementNode) StmtType() string { return "ForInSatementNode" }
+func (n ForInSatementNode) StmtType() NodeType { return NodeForInStatement }
 
 type BreakNode struct {
 	Line int
 }
 
-func (n BreakNode) StmtType() string { return "BreakNode" }
+func (n BreakNode) StmtType() NodeType { return NodeBreakStatement }
 
 type ContinueNode struct {
 	Line int
 }
 
-func (n ContinueNode) StmtType() string { return "ContinueNode" }
+func (n ContinueNode) StmtType() NodeType { return NodeContinueStatement }
 
 type ReturnNode struct {
 	Right Exp
 	Line  int
 }
 
-func (n ReturnNode) StmtType() string { return "ReturnNode" }
+func (n ReturnNode) StmtType() NodeType { return NodeReturnStatement }
 
 type TryCatchNode struct {
 	Body    []Stmt
@@ -234,14 +272,14 @@ type TryCatchNode struct {
 	Line    int
 }
 
-func (n TryCatchNode) StmtType() string { return "TryCatchNode" }
+func (n TryCatchNode) StmtType() NodeType { return NodeTryCatchStatement }
 
 type LoopStmtNode struct {
 	Body []Stmt
 	Line int
 }
 
-func (n LoopStmtNode) StmtType() string { return "LoopStmtNode" }
+func (n LoopStmtNode) StmtType() NodeType { return NodeLoopStatement }
 
 type ImportNode struct {
 	Line  int
@@ -249,4 +287,4 @@ type ImportNode struct {
 	Alias string
 }
 
-func (n ImportNode) StmtType() string { return "ImportNode" }
+func (n ImportNode) StmtType() NodeType { return NodeImportStatement }

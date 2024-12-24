@@ -23,7 +23,7 @@ func Load(env *environment.Environment) {
 	obj.Struct = structValue
 	obj.Value = make(map[string]values.RuntimeValue)
 
-	env.Variables["crypt"] = obj
+	env.DeclareVar("crypt", obj)
 
 }
 

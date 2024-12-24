@@ -15,11 +15,13 @@ import (
 
 func SetupEnvironment(env *environment.Environment) {
 
-	env.Variables["input"] = values.NativeFunctionValue{Value: ReadUserInput}
-	env.Variables["print"] = values.NativeFunctionValue{Value: PrintStdOut}
-	env.Variables["number"] = values.NativeFunctionValue{Value: ToNumber}
-	env.Variables["string"] = values.NativeFunctionValue{Value: ToString}
-	env.Variables["isNothing"] = values.NativeFunctionValue{Value: IsNothing}
+	env.PushScope()
+
+	env.DeclareVar("input", values.NativeFunctionValue{Value: ReadUserInput})
+	env.DeclareVar("print", values.NativeFunctionValue{Value: PrintStdOut})
+	env.DeclareVar("number", values.NativeFunctionValue{Value: ToNumber})
+	env.DeclareVar("string", values.NativeFunctionValue{Value: ToString})
+	env.DeclareVar("isNothing", values.NativeFunctionValue{Value: IsNothing})
 
 	env.DeclareVar("time", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
 		now := time.Now()
@@ -42,7 +44,7 @@ func SetupEnvironment(env *environment.Environment) {
 		arguments = append(arguments, values.StringValue{Value: arg})
 	}
 
-	env.Variables["getArgs"] = values.NativeFunctionValue{Value: GetArguments}
+	env.DeclareVar("getArgs", values.NativeFunctionValue{Value: GetArguments})
 }
 
 func IsNothing(args []values.RuntimeValue) values.RuntimeValue {

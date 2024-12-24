@@ -1009,7 +1009,7 @@ func (p *Parser) ParseCallExpr(member Exp) Exp {
 	node := CallExpNode{}
 	node.Line = p.t.Get().Line
 
-	if member.ExpType() != "IdentifierNode" && member.ExpType() != "MemberExpNode" {
+	if member.ExpType() != NodeIdentifier && member.ExpType() != NodeMemberExp {
 		Stop("Expected identifier in call expression in line " + fmt.Sprint(p.t.Get().Line))
 	}
 

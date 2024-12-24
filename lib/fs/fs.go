@@ -96,7 +96,7 @@ func GetFileStruct() values.StructValue {
 
 func Load(env *environment.Environment) {
 
-	env.Variables["File"] = GetFileStruct()
+	env.DeclareVar("File", GetFileStruct())
 
 	structValue := values.StructValue{}
 	structValue.Properties = []string{"fs"}
@@ -112,7 +112,7 @@ func Load(env *environment.Environment) {
 	obj.Struct = structValue
 	obj.Value = make(map[string]values.RuntimeValue)
 
-	env.Variables["fs"] = obj
+	env.DeclareVar("fs", obj)
 
 }
 

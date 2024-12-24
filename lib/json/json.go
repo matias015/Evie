@@ -16,7 +16,7 @@ func Load(env *environment.Environment) {
 	namespace.Value["encode"] = values.NativeFunctionValue{Value: Encode}
 	namespace.Value["decode"] = values.NativeFunctionValue{Value: Decode}
 
-	env.Variables["json"] = namespace
+	env.DeclareVar("json", namespace)
 }
 
 func Encode(args []values.RuntimeValue) values.RuntimeValue {

@@ -34,12 +34,8 @@ func main() {
 	// litter.Dump(ast[1])
 	// os.Exit(1)
 
-	parentEnv := environment.NewEnvironment(nil)
-	parentEnv.ModuleName = file
-	native.SetupEnvironment(parentEnv)
-
-	env := environment.NewEnvironment(parentEnv)
-	env.ModuleName = file
+	env := environment.NewEnvironment()
+	native.SetupEnvironment(env)
 
 	// start := time.Now()
 	intr := evruntime.Evaluator{Nodes: ast}

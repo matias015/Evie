@@ -167,7 +167,7 @@ func Load(env *environment.Environment) {
 
 	ns.Value["connect"] = values.NativeFunctionValue{Value: Connect}
 
-	env.Variables["postgres"] = ns
+	env.DeclareVar("postgres", ns)
 }
 
 func Connect(args []values.RuntimeValue) values.RuntimeValue {

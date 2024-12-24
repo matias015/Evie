@@ -12,11 +12,13 @@ fn fibonacci(n){
     return fibonacci(n-1) + fibonacci(n-2)
 }
 
-
+fn fibonacciTer(n){
+    return (n == 0? 0 : (n == 1? 1:fibonacciTer(n-1) + fibonacciTer(n-2)))
+}
 
 // 16 -> aprox 3.667 seg
 // 17 -> aprox 10.1 seg
-var u = 10
+var u = 31
 var r = 0
 var i = 0
 loop{

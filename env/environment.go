@@ -5,7 +5,14 @@ import (
 	"evie/values"
 	"fmt"
 	"strconv"
+	"sync"
 )
+
+var mapPool = sync.Pool{
+	New: func() interface{} {
+		return make(map[string]values.RuntimeValue)
+	},
+}
 
 type Environment struct {
 	// Parent evironment, if a variable is not found in the current environment
@@ -13,7 +20,7 @@ type Environment struct {
 	Parent *Environment
 
 	// Variables is a map of variable names to their values
-	Variables map[string]values.RuntimeValue
+	Variables []map[string]values.RuntimeValue
 
 	// Imported Files
 	ImportMap map[string][]string
@@ -22,29 +29,44 @@ type Environment struct {
 	ModuleName string
 }
 
+func (e *Environment) PushScope() {
+	myMap := mapPool.Get().(map[string]values.RuntimeValue)
+
+	e.Variables = append(e.Variables, myMap)
+}
+
+func (e *Environment) ExitScope() {
+	for k := range e.Variables[len(e.Variables)-1] {
+		delete(e.Variables[len(e.Variables)-1], k)
+	}
+	mapPool.Put(e.Variables[len(e.Variables)-1])
+	e.Variables = e.Variables[:len(e.Variables)-1]
+}
+
 // Declares a variable
 func (e *Environment) DeclareVar(name string, value values.RuntimeValue) (bool, error) {
-	if _, ok := e.Variables[name]; ok {
-		return false, fmt.Errorf("Variable '%s' already declared", name)
+	currentScope := e.Variables[len(e.Variables)-1]
+	if _, exists := currentScope[name]; exists {
+		return false, fmt.Errorf("variable '%s' already declared", name)
 	}
-	e.Variables[name] = value
+	currentScope[name] = value
 	return true, nil
 }
 
 // Returns the value of a variable
 func (e *Environment) GetVar(name string, line int) (values.RuntimeValue, error) {
 
-	// Look for the variable in the current environment
-	if value, ok := e.Variables[name]; ok {
-		return value, nil
+	for i := len(e.Variables) - 1; i >= 0; i-- {
+		if val, exists := e.Variables[i][name]; exists {
+			return val, nil
+		}
 	}
+	return nil, fmt.Errorf("variable '%s' not found", name)
+}
 
-	// If the variable is not found in the current environment
-	if e.Parent != nil {
-		return e.Parent.GetVar(name, line)
-	}
-
-	return nil, fmt.Errorf("Undefined variable '%s'", name)
+func (e *Environment) ForceDeclare(name string, value values.RuntimeValue) (bool, error) {
+	e.Variables[len(e.Variables)-1][name] = value
+	return true, nil
 }
 
 // Assigns a value to a variable
@@ -52,16 +74,14 @@ func (e *Environment) SetVar(name parser.Exp, value values.RuntimeValue) (bool, 
 
 	switch left := name.(type) {
 	case parser.IdentifierNode: // it is simple asignment like a = Exp
-		_, exists := e.Variables[left.Value]
-		if !exists {
-			if e.Parent != nil {
-				return e.Parent.SetVar(left, value)
-			} else {
-				return false, fmt.Errorf("Undefined variable '" + left.Value + "'")
+		for i := len(e.Variables) - 1; i >= 0; i-- { // Recorre desde el último alcance
+			scope := e.Variables[i]
+			if _, exists := scope[left.Value]; exists {
+				scope[left.Value] = value // Actualiza el valor
+				return true, nil          // Operación exitosa
 			}
 		}
-		e.Variables[left.Value] = value
-		return true, nil
+		return false, fmt.Errorf("variable '%s' not found", left.Value)
 	// case parser.IndexAccessExpNode: // it is index assignment like a[i] = Exp or a[b][c] = Exp
 	//  -> This is made by the evaluator
 	case parser.MemberExpNode: // it is index assignment like a[i] = Exp or a[b][c] = Exp
@@ -87,15 +107,11 @@ func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.
 
 	// Get the value of the base variable
 	// looping through the its properties by following the chain will be turned into the final value
-	endValue, exists := e.Variables[varName]
+	endValue, err := e.GetVar(varName, left.Line)
 	// fmt.Println(chain)
 
-	if !exists {
-		if e.Parent != nil {
-			return e.Parent.ModifyMemberValue(left, value, chain)
-		} else {
-			return false, fmt.Errorf("Undefined variable '" + varName + "'")
-		}
+	if err != nil {
+		return false, fmt.Errorf("Undefined variable '" + varName + "'")
 	}
 
 	// only use the middle of the chain, if chain is ["a", "b", "2", "c"] then only use ["b", "2"]
@@ -143,14 +159,10 @@ func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value val
 
 	// Get the value of the base variable
 	// looping through the its properties by following the chain will be turned into the final value
-	endValue, exists := e.Variables[varName]
+	endValue, err := e.GetVar(varName, left.Line)
 
-	if !exists {
-		if e.Parent != nil {
-			return e.Parent.ModifyIndexValue(left, value, chain)
-		} else {
-			return false, fmt.Errorf("Undefined variable '" + varName + "'")
-		}
+	if err != nil {
+		return false, fmt.Errorf("Undefined variable '" + varName + "'")
 	}
 
 	// only use the middle of the chain, if chain is ["a", "b", "2", "c"] then only use ["b", "2"]
@@ -226,9 +238,9 @@ func (e *Environment) ResolveMemberAccessChain(node parser.MemberExpNode) []stri
 	indexes = append(indexes, node.Member.Value)
 
 	// if the base Var is another index access, resolve the chain recursively
-	if node.Left.ExpType() == "MemberExpNode" {
+	if node.Left.ExpType() == parser.NodeMemberExp {
 		indexes = append(e.ResolveMemberAccessChain(node.Left.(parser.MemberExpNode)), indexes...)
-	} else if node.Left.ExpType() == "IdentifierNode" {
+	} else if node.Left.ExpType() == parser.NodeIdentifier {
 		valName := node.Left.(parser.IdentifierNode).Value
 		indexes = append([]string{valName}, indexes...)
 	}

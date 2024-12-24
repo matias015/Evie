@@ -1,0 +1,16 @@
+var init = time()
+
+fn test(n){
+
+	return n < 100000 ? test(n + 2) : n
+
+}
+
+var result = test(0)
+
+
+
+print(result)
+var end = time()
+
+print("Total time: ", (end-init)/1000, " seg")

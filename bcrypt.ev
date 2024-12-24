@@ -1,0 +1,24 @@
+import crypt 
+
+var init = time()
+
+fn hash(){
+	return crypt.bcrypt("1234",12)
+}
+
+var i = 0
+loop {
+
+	if i >= 100{
+		break
+	}
+	print(i)
+	print(hash())
+
+	i = i + 1
+
+}
+
+
+var end = time()
+print("Total time: ", (end-init)/1000, " seg")

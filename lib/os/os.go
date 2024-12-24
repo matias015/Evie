@@ -12,7 +12,7 @@ func Load(env *environment.Environment) {
 
 	ns.Value["exec"] = values.NativeFunctionValue{Value: Exec}
 
-	env.Variables["os"] = ns
+	env.DeclareVar("os", ns)
 
 }
 

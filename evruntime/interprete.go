@@ -36,36 +36,36 @@ func (e *Evaluator) Evaluate(env *environment.Environment) *environment.Environm
 }
 
 // Evaluate a single Statement node
-func (e *Evaluator) EvaluateStmt(node parser.Stmt, env *environment.Environment) values.RuntimeValue {
-	switch n := node.(type) {
-	case parser.ExpressionStmtNode:
-		return e.EvaluateExpressionStmt(n, env)
-	case parser.VarDeclarationNode:
-		return e.EvaluateVarDeclaration(n, env)
-	case parser.IfStatementNode:
-		return e.EvaluateIfStmt(n, env)
-	case parser.ForInSatementNode:
-		return e.EvaluateForInStmt(n, env)
-	case parser.FunctionDeclarationNode:
-		return e.EvaluateFunctionDeclarationStmt(n, env)
-	case parser.LoopStmtNode:
-		return e.EvaluateLoopStmt(n, env)
-	case parser.StructMethodDeclarationNode:
-		return e.EvaluateStructMethodExpression(n, env)
-	case parser.BreakNode:
-		return e.EvaluateBreakNode(n, env)
-	case parser.ContinueNode:
-		return e.EvaluateContinueNode(n, env)
-	case parser.ReturnNode:
-		return e.EvaluateReturnNode(n, env)
-	case parser.TryCatchNode:
-		return e.EvaluateTryCatchNode(n, env)
-	case parser.StructDeclarationNode:
-		return e.EvaluatStructDeclarationStmt(n, env)
-	case parser.ImportNode:
-		return e.EvaluateImportNode(n, env)
+func (e *Evaluator) EvaluateStmt(n parser.Stmt, env *environment.Environment) values.RuntimeValue {
+	switch n.StmtType() {
+	case parser.NodeExpStmt:
+		return e.EvaluateExpressionStmt(n.(parser.ExpressionStmtNode), env)
+	case parser.NodeVarDeclaration:
+		return e.EvaluateVarDeclaration(n.(parser.VarDeclarationNode), env)
+	case parser.NodeIfStatement:
+		return e.EvaluateIfStmt(n.(parser.IfStatementNode), env)
+	case parser.NodeForInStatement:
+		return e.EvaluateForInStmt(n.(parser.ForInSatementNode), env)
+	case parser.NodeFunctionDeclaration:
+		return e.EvaluateFunctionDeclarationStmt(n.(parser.FunctionDeclarationNode), env)
+	case parser.NodeLoopStatement:
+		return e.EvaluateLoopStmt(n.(parser.LoopStmtNode), env)
+	case parser.NodeStructMethodDeclaration:
+		return e.EvaluateStructMethodExpression(n.(parser.StructMethodDeclarationNode), env)
+	case parser.NodeBreakStatement:
+		return e.EvaluateBreakNode(n.(parser.BreakNode), env)
+	case parser.NodeContinueStatement:
+		return e.EvaluateContinueNode(n.(parser.ContinueNode), env)
+	case parser.NodeReturnStatement:
+		return e.EvaluateReturnNode(n.(parser.ReturnNode), env)
+	case parser.NodeTryCatch:
+		return e.EvaluateTryCatchNode(n.(parser.TryCatchNode), env)
+	case parser.NodeStructDeclaration:
+		return e.EvaluatStructDeclarationStmt(n.(parser.StructDeclarationNode), env)
+	case parser.NodeImportStatement:
+		return e.EvaluateImportNode(n.(parser.ImportNode), env)
 	default: // If is not a statement, it is a expressionStmt
-		return e.EvaluateExpressionStmt(node.(parser.ExpressionStmtNode), env)
+		return e.EvaluateExpressionStmt(n.(parser.ExpressionStmtNode), env)
 	}
 
 }
@@ -123,12 +123,12 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 		ast := parser.NewParser(tokens).GetAST()
 
 		// Create a new global environtment for load the module to avoid name conflicts
-		parentEnv := environment.NewEnvironment(nil)
+		parentEnv := environment.NewEnvironment()
 		native.SetupEnvironment(parentEnv)
 		parentEnv.ModuleName = node.Path
 
 		// Create new environment for the module with the parent environment
-		envForModule := environment.NewEnvironment(parentEnv)
+		envForModule := environment.NewEnvironment()
 		envForModule.ImportMap = env.ImportMap
 
 		eval := Evaluator{Nodes: ast}
@@ -136,7 +136,7 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 		// Get the created environment after evaluate the module
 		// Get all the variables loaded and load into the actual environment
 		// using a namespace
-		env.Variables[node.Alias] = values.NamespaceValue{Value: importEnv.Variables}
+		env.DeclareVar(node.Alias, values.NamespaceValue{Value: importEnv.Variables[0]})
 
 	}
 
@@ -147,18 +147,20 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 func (e Evaluator) EvaluateLoopStmt(node parser.LoopStmtNode, env *environment.Environment) values.RuntimeValue {
 
 	// Creating new environment
-	newenv := environment.NewEnvironment(env)
+	env.PushScope()
 
 	for {
 
 		// Loop through body
 		for _, stmt := range node.Body {
 
-			ret := e.EvaluateStmt(stmt, newenv)
+			ret := e.EvaluateStmt(stmt, env)
 
 			if ret != nil && (ret.GetType() == "ErrorValue" || ret.GetType() == "return") {
+				env.ExitScope()
 				return ret
 			} else if ret != nil && ret.GetType() == "break" {
+				env.ExitScope()
 				return nil
 			} else if ret != nil && ret.GetType() == "continue" {
 				break
@@ -166,7 +168,8 @@ func (e Evaluator) EvaluateLoopStmt(node parser.LoopStmtNode, env *environment.E
 
 		}
 	}
-
+	env.ExitScope()
+	return nil
 }
 
 // TRY CATCH
@@ -176,36 +179,39 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 	catch := node.Catch
 
 	// Creating new environment
-	newenv := environment.NewEnvironment(env)
+	env.PushScope()
 
 	// Loop through body
 	for _, stmt := range body {
 
-		ret := e.EvaluateStmt(stmt, newenv)
+		ret := e.EvaluateStmt(stmt, env)
 
 		if ret != nil && ret.GetType() == "return" {
 			if node.Finally != nil {
-				e.EvaluateFinallyBlock(node.Finally, newenv)
+				e.EvaluateFinallyBlock(node.Finally, env)
 			}
+			env.ExitScope()
 			return ret
 		}
 
 		if IsError(ret) {
 
-			newenv.Variables["error"] = values.CapturedErrorValue{Value: ret.(values.ErrorValue)}
+			env.DeclareVar("error", values.CapturedErrorValue{Value: ret.(values.ErrorValue)})
 
 			// CATCH BODY
 			for _, cstmt := range catch {
 
-				result := e.EvaluateStmt(cstmt, newenv)
+				result := e.EvaluateStmt(cstmt, env)
 
 				// Error inside the catch lol
 				if result.GetType() == "ErrorValue" || result.GetType() == "return" {
 					if node.Finally != nil {
-						e.EvaluateFinallyBlock(node.Finally, newenv)
+						e.EvaluateFinallyBlock(node.Finally, env)
 					}
+					env.ExitScope()
 					return result
 				} else if result.GetType() == "break" {
+					env.ExitScope()
 					return nil
 				} else if result.GetType() == "continue" {
 					continue
@@ -213,15 +219,16 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 			}
 
 			if node.Finally != nil {
-				e.EvaluateFinallyBlock(node.Finally, newenv)
+				e.EvaluateFinallyBlock(node.Finally, env)
 			}
-
+			env.ExitScope()
 			return nil
 		}
 	}
 	if node.Finally != nil {
-		e.EvaluateFinallyBlock(node.Finally, newenv)
+		e.EvaluateFinallyBlock(node.Finally, env)
 	}
+	env.ExitScope()
 	return nil
 }
 
@@ -241,7 +248,7 @@ func (e Evaluator) EvaluateReturnNode(node parser.ReturnNode, env *environment.E
 		Env:  env,
 	}
 
-	eval := e.EvaluateExpression(ret.Exp, ret.Env.(*environment.Environment))
+	eval := e.EvaluateExpression(ret.Exp, env)
 	// litter.Dump(eval)
 	if eval.GetType() == "ErrorValue" {
 		return eval
@@ -278,13 +285,12 @@ func (e Evaluator) EvaluateForInStmt(node parser.ForInSatementNode, env *environ
 		return iterator
 	}
 
-	// Creating new environment
-	newEnv := environment.NewEnvironment(env)
-
 	// Flag for Break statement
 	thereIsBreak := false
 
 	if iterator.GetType() == "ArrayValue" {
+		// Creating new environment
+		env.PushScope()
 
 		iterValues := iterator.(*values.ArrayValue).Value
 
@@ -295,19 +301,20 @@ func (e Evaluator) EvaluateForInStmt(node parser.ForInSatementNode, env *environ
 			}
 
 			// Load variables in env on each iteration
-			newEnv.Variables[node.LocalVarName] = value
+			env.DeclareVar(node.LocalVarName, value)
 
 			if node.IndexVarName != "" {
-				newEnv.Variables[node.IndexVarName] = values.NumberValue{Value: float64(index)}
+				env.DeclareVar(node.IndexVarName, values.NumberValue{Value: float64(index)})
 			}
 
 			// LOOP through for in body!
 			for _, stmt := range node.Body {
 
-				result := e.EvaluateStmt(stmt, newEnv)
+				result := e.EvaluateStmt(stmt, env)
 
 				if result != nil {
 					if result.GetType() == "ErrorValue" || result.GetType() == "return" {
+						env.ExitScope()
 						return result
 					} else if result.GetType() == "break" {
 						thereIsBreak = true
@@ -319,7 +326,11 @@ func (e Evaluator) EvaluateForInStmt(node parser.ForInSatementNode, env *environ
 
 			}
 		}
+
 	} else if iterator.GetType() == "DictionaryValue" {
+		// Creating new environment
+		env.PushScope()
+
 		iterValues := iterator.(values.DictionaryValue).Value
 
 		for index, value := range iterValues {
@@ -328,17 +339,18 @@ func (e Evaluator) EvaluateForInStmt(node parser.ForInSatementNode, env *environ
 				break
 			}
 
-			newEnv.Variables[node.IndexVarName] = values.StringValue{Value: index, Mutable: false}
+			env.DeclareVar(node.LocalVarName, values.StringValue{Value: index, Mutable: false})
 			if node.IndexVarName != "" {
-				newEnv.Variables[node.LocalVarName] = value
+				env.DeclareVar(node.IndexVarName, value)
 			}
 
 			for _, stmt := range node.Body {
 
-				result := e.EvaluateStmt(stmt, newEnv)
+				result := e.EvaluateStmt(stmt, env)
 
 				if result != nil {
 					if result.GetType() == "ErrorValue" || result.GetType() == "return" {
+						env.ExitScope()
 						return result
 					} else if result.GetType() == "break" {
 						thereIsBreak = true
@@ -351,6 +363,7 @@ func (e Evaluator) EvaluateForInStmt(node parser.ForInSatementNode, env *environ
 			}
 
 		}
+		env.ExitScope()
 	}
 
 	return values.BooleanValue{Value: true}
@@ -412,13 +425,14 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 
 	if value == true {
 
-		newEnv := environment.NewEnvironment(env)
+		env.PushScope()
 
 		for _, stmt := range node.Body {
 
-			result := e.EvaluateStmt(stmt, newEnv)
+			result := e.EvaluateStmt(stmt, env)
 
 			if result != nil && result.GetType() == "ErrorValue" || result.GetType() == "return" || result.GetType() == "break" || result.GetType() == "continue" {
+				env.ExitScope()
 				return result
 			}
 
@@ -446,30 +460,34 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 
 					matched = true
 
-					newEnv := environment.NewEnvironment(env)
+					env.PushScope()
 
 					for _, stmt := range elseif.Body {
 
-						result := e.EvaluateStmt(stmt, newEnv)
+						result := e.EvaluateStmt(stmt, env)
 
 						if result != nil && (result.GetType() == "ErrorValue" || result.GetType() == "return" || result.GetType() == "break" || result.GetType() == "continue") {
+							env.ExitScope()
 							return result
 						}
 					}
+					env.ExitScope()
 					return nil
 				}
 			}
 		}
 
 		if matched == false {
-			newEnv := environment.NewEnvironment(env)
+			env.PushScope()
 			for _, stmt := range node.ElseBody {
 
-				result := e.EvaluateStmt(stmt, newEnv)
+				result := e.EvaluateStmt(stmt, env)
 				if result != nil && (result.GetType() == "ErrorValue" || result.GetType() == "return" || result.GetType() == "break" || result.GetType() == "continue") {
+					env.ExitScope()
 					return result
 				}
 			}
+			env.ExitScope()
 		}
 	}
 
@@ -507,55 +525,56 @@ func (e Evaluator) EvaluateVarDeclaration(node parser.VarDeclarationNode, env *e
 }
 
 // Evaluate an expression
-func (e *Evaluator) EvaluateExpression(node parser.Exp, env *environment.Environment) values.RuntimeValue {
+func (e *Evaluator) EvaluateExpression(n parser.Exp, env *environment.Environment) values.RuntimeValue {
 
-	if node == nil {
+	if n == nil {
 		return nil
 	}
 
-	switch n := node.(type) {
+	switch n.ExpType() {
 
-	case parser.BinaryExpNode:
-		return e.EvaluateBinaryExpression(n, env)
-	case parser.AnonFunctionDeclarationNode:
-		return e.EvaluateAnonymousFunctionExpression(n, env)
-	case parser.TernaryExpNode:
-		return e.EvaluateTernaryExpression(n, env)
-	case parser.CallExpNode:
-		return e.EvaluateCallExpression(n, env)
-	case parser.IdentifierNode:
-		lookup, err := env.GetVar(n.Value, n.Line)
+	case parser.NodeBinaryExp:
+		return e.EvaluateBinaryExpression(n.(parser.BinaryExpNode), env)
+	case parser.NodeAnonFunctionDeclaration:
+		return e.EvaluateAnonymousFunctionExpression(n.(parser.AnonFunctionDeclarationNode), env)
+	case parser.NodeTernaryExp:
+		return e.EvaluateTernaryExpression(n.(parser.TernaryExpNode), env)
+	case parser.NodeCallExp:
+		return e.EvaluateCallExpression(n.(parser.CallExpNode), env)
+	case parser.NodeIdentifier:
+		node := n.(parser.IdentifierNode)
+		lookup, err := env.GetVar(node.Value, node.Line)
 		if err != nil {
-			return e.Panic(err.Error(), n.Line, env)
+			return e.Panic(err.Error(), node.Line, env)
 		}
 		return lookup
-	case parser.UnaryExpNode:
-		return e.EvaluateUnaryExpression(n, env)
-	case parser.NumberNode:
-		parsedNumber, _ := strconv.ParseFloat(n.Value, 2)
+	case parser.NodeUnaryExp:
+		return e.EvaluateUnaryExpression(n.(parser.UnaryExpNode), env)
+	case parser.NodeNumber:
+		parsedNumber, _ := strconv.ParseFloat(n.(parser.NumberNode).Value, 2)
 		return values.NumberValue{Value: parsedNumber}
-	case parser.StringNode:
-		return values.StringValue{Value: n.Value}
-	case parser.NothingNode:
+	case parser.NodeString:
+		return values.StringValue{Value: n.(parser.StringNode).Value}
+	case parser.NodeNothing:
 		return values.NothingValue{}
-	case parser.IndexAccessExpNode:
-		return e.EvaluateIndexAccessExpression(n, env)
-	case parser.BooleanNode:
-		return values.BooleanValue{Value: n.Value}
-	case parser.AssignmentNode:
-		return e.EvaluateAssignmentExpression(n, env)
-	case parser.SliceExpNode:
-		return e.EvaluateSliceExpression(n, env)
-	case parser.MemberExpNode:
-		return e.EvaluateMemberExpression(n, env)
-	case parser.ObjectInitExpNode:
-		return e.EvaluateObjInitializeExpression(n, env)
-	case parser.ArrayExpNode:
-		return e.EvaluateArrayExpression(n, env)
-	case parser.DictionaryExpNode:
-		return e.EvaluateDictionaryExpression(n, env)
+	case parser.NodeIndexAccessExp:
+		return e.EvaluateIndexAccessExpression(n.(parser.IndexAccessExpNode), env)
+	case parser.NodeBoolean:
+		return values.BooleanValue{Value: n.(parser.BooleanNode).Value}
+	case parser.NodeAssignment:
+		return e.EvaluateAssignmentExpression(n.(parser.AssignmentNode), env)
+	case parser.NodeSliceExp:
+		return e.EvaluateSliceExpression(n.(parser.SliceExpNode), env)
+	case parser.NodeMemberExp:
+		return e.EvaluateMemberExpression(n.(parser.MemberExpNode), env)
+	case parser.NodeObjectInitExp:
+		return e.EvaluateObjInitializeExpression(n.(parser.ObjectInitExpNode), env)
+	case parser.NodeArrayExp:
+		return e.EvaluateArrayExpression(n.(parser.ArrayExpNode), env)
+	case parser.NodeDictionaryExp:
+		return e.EvaluateDictionaryExpression(n.(parser.DictionaryExpNode), env)
 	default:
-		return values.ErrorValue{Value: "Unknown expression type: " + node.ExpType()}
+		return values.ErrorValue{Value: "Unknown expression type"}
 	}
 
 }
@@ -668,7 +687,7 @@ func (e Evaluator) EvaluateStructMethodExpression(node parser.StructMethodDeclar
 	fn.Environment = env
 
 	// Store function in struct
-	env.Variables[structName].(values.StructValue).Methods[node.Function.Name] = fn
+	env.Variables[len(env.Variables)][structName].(values.StructValue).Methods[node.Function.Name] = fn
 
 	return nil
 }
@@ -858,7 +877,6 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 
 		return fn
 	case values.NativeFunctionValue:
-		e.CallStack = append(e.CallStack, env.ModuleName+": "+strconv.Itoa(node.Line))
 
 		val := fn.Value(evaluatedArgs)
 
@@ -868,58 +886,47 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 			return e.Panic(val.GetStr(), node.Line, env)
 		}
 
-		e.CallStack = e.CallStack[:len(e.CallStack)-1]
 		return val
 	case values.FunctionValue:
 
 		// Create new environment
-		newEnv := environment.NewEnvironment(env)
-		if fn.Environment != nil {
-			newEnv.ModuleName = fn.Environment.(*environment.Environment).ModuleName
-			newEnv.Parent = fn.Environment.(*environment.Environment)
-		}
+		env.PushScope()
 
 		// Set this
 		if fn.Struct != "" {
-			newEnv.Variables["this"] = fn.StructObjRef
+			env.DeclareVar("this", fn.StructObjRef)
 		}
 
-		for index, param := range fn.Parameters {
-			value := e.EvaluateExpression(node.Args[index], env)
-			if value.GetType() == "ErrorValue" {
-				return value
-			}
-			newEnv.Variables[param] = value
+		for index, arg := range evaluatedArgs {
+			env.ForceDeclare(fn.Parameters[index], arg)
 		}
 
 		var result values.RuntimeValue
-		// e.CallStack = append(e.CallStack, env.ModuleName+": "+strconv.Itoa(node.Line))
-		e.CallStackEntry(env.ModuleName, node.Line)
 
 		for _, stmt := range fn.Body {
-			result = e.EvaluateStmt(stmt, newEnv)
+			result = e.EvaluateStmt(stmt, env)
 
 			if result != nil && result.GetType() == "ErrorValue" {
+				env.ExitScope()
 				return result
 			}
 
 			signal, isSignal := result.(values.SignalValue)
 
 			if isSignal && signal.Type == "return" {
-				exp := e.EvaluateExpression(signal.Exp, signal.Env.(*environment.Environment))
 
-				if exp.GetType() == "ErrorValue" {
-
-					return exp
+				if signal.Value.GetType() == "ErrorValue" {
+					env.ExitScope()
+					return signal
 				}
 
-				e.CallStackExit()
+				env.ExitScope()
 
-				return exp
+				return signal.Value
 			}
 
 		}
-		e.CallStackExit()
+		env.ExitScope()
 		return values.NothingValue{}
 
 	default:
@@ -958,9 +965,9 @@ func (e *Evaluator) ResolveIndexAccessChain(node parser.IndexAccessExpNode, env 
 	indexes = append(indexes, lastIndex)
 
 	// if the base Var is another index access, resolve the chain recursively
-	if node.Left.ExpType() == "IndexAccessExpNode" {
+	if node.Left.ExpType() == parser.NodeIndexAccessExp {
 		indexes = append(e.ResolveIndexAccessChain(node.Left.(parser.IndexAccessExpNode), env), indexes...)
-	} else if node.Left.ExpType() == "IdentifierNode" {
+	} else if node.Left.ExpType() == parser.NodeIdentifier {
 		valName := node.Left.(parser.IdentifierNode).Value
 		indexes = append([]string{valName}, indexes...)
 	}
@@ -981,7 +988,7 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 		return right
 	}
 
-	if left.ExpType() == "IndexAccessExpNode" {
+	if left.ExpType() == parser.NodeIndexAccessExp {
 		chain := e.ResolveIndexAccessChain(left.(parser.IndexAccessExpNode), env)
 		_, err := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
 
@@ -1192,9 +1199,9 @@ func (e Evaluator) ExecuteCallback(fn interface{}, env interface{}, args []inter
 
 	fnValue := fn.(values.FunctionValue)
 
-	parentEnvironment := env.(*environment.Environment)
+	// parentEnvironment := env.(*environment.Environment)
 
-	childEnvironment := environment.NewEnvironment(parentEnvironment)
+	childEnvironment := environment.NewEnvironment()
 
 	for i, paramName := range fnValue.Parameters {
 		if i+1 < len(args) {
@@ -1203,20 +1210,20 @@ func (e Evaluator) ExecuteCallback(fn interface{}, env interface{}, args []inter
 
 		switch val := args[i].(type) {
 		case values.ObjectValue:
-			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+			childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
 		case values.NumberValue:
-			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+			childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
 		case values.StringValue:
-			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+			childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
 		case values.BooleanValue:
-			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+			childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
 		case values.ArrayValue:
-			childEnvironment.Variables[paramName] = values.RuntimeValue(val)
+			childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
 		}
 	}
 
 	var result values.RuntimeValue
-	e.CallStack = append(e.CallStack, childEnvironment.ModuleName)
+
 	for _, stmt := range fnValue.Body {
 		result = e.EvaluateStmt(stmt, childEnvironment)
 
@@ -1228,12 +1235,9 @@ func (e Evaluator) ExecuteCallback(fn interface{}, env interface{}, args []inter
 
 		if isSignal && signal.Type == "return" {
 
-			e.CallStackExit()
-
 			return signal.Value
 		}
 
 	}
-	e.CallStackExit()
 	return nil
 }

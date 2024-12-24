@@ -22,10 +22,10 @@ func Load(env *environment.Environment) {
 	namespace.Value["route"] = values.NativeFunctionValue{Value: AddRoute}
 	namespace.Value["listen"] = values.NativeFunctionValue{Value: ListenAndServe}
 
-	env.Variables["http"] = namespace
+	env.DeclareVar("http", namespace)
 
 	// REQUEST VALUE STRUCT
-	env.Variables["Request"] = GetRequestStructValue()
+	env.DeclareVar("Request", GetRequestStructValue())
 }
 
 func AddRoute(args []values.RuntimeValue) values.RuntimeValue {
@@ -34,7 +34,8 @@ func AddRoute(args []values.RuntimeValue) values.RuntimeValue {
 	function := args[1]
 	fn := function.(values.FunctionValue)
 	env := fn.Environment.(*environment.Environment)
-	env.Variables["Request"] = values.StringValue{Value: "Request he"}
+	env.DeclareVar("Request", values.StringValue{Value: "Request he"})
+
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 
 		reqObject := values.ObjectValue{}
