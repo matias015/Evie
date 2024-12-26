@@ -1,8 +1,4 @@
 
-var x = {a:1, b:2}
+var x = "Hello"
 
-x["a"] = 23234
-
-x.add("c", 3)
-
-print(x.has("f"))
+print(x.addPaddingRight("xd",20))

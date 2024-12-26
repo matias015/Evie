@@ -1,5 +1,11 @@
 package values
 
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
 /*
 ----------------------------------------------------------
 --- StringValue
@@ -23,111 +29,111 @@ package values
 // 	return "StringValue"
 // }
 
-// func (s StringValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
+func GetStringProp(value string, name string) (RuntimeValue, error) {
 
-// 	props := map[string]RuntimeValue{
+	props := map[string]RuntimeValue{
+		"is": {Type: NativeFunctionType,
+			Value: func(args []RuntimeValue) RuntimeValue {
+				for _, arg := range args {
+					if arg.Value.(string) == value {
+						return RuntimeValue{Type: BoolType, Value: true}
+					}
+				}
+				return RuntimeValue{Type: BoolType, Value: false}
+			},
+		},
+		"addPaddingLeft": {Type: NativeFunctionType,
+			Value: func(args []RuntimeValue) RuntimeValue {
+				char := args[0].String()
+				length := int(args[1].Value.(float64))
+				actualLength := len(value)
+				output := value
+				for i := 0; i < length-actualLength; i++ {
+					output = char + output
+				}
+				return RuntimeValue{Type: StringType, Value: output}
+			},
+		},
+		"addPaddingRight": {Type: NativeFunctionType,
+			Value: func(args []RuntimeValue) RuntimeValue {
+				char := args[0].String()
+				length := int(args[1].Value.(float64))
+				actualLength := len(value)
+				output := value
+				for i := 0; i < length-actualLength; i++ {
+					output = output + char
+				}
+				return RuntimeValue{Type: StringType, Value: output}
+			},
+		},
+		"trim": {Type: NativeFunctionType,
+			Value: func(args []RuntimeValue) RuntimeValue {
 
-//
-//
-// 		"is": NativeFunctionValue{
-// 			Value: func(args []RuntimeValue) RuntimeValue {
-// 				for _, arg := range args {
-// 					if arg.GetStr() == s.GetStr() {
-// 						return BooleanValue{Value: true}
-// 					}
-// 				}
-// 				return BooleanValue{Value: false}
-// 			},
-// 		},
-// 		"addPaddingLeft": NativeFunctionValue{
-// 			Value: func(args []RuntimeValue) RuntimeValue {
-// 				char := args[0].GetStr()
-// 				length := int(args[1].GetNumber())
-// 				actualLength := len(s.GetStr())
-// 				output := s.Value
-// 				for i := 0; i < length-actualLength; i++ {
-// 					output = char + output
-// 				}
-// 				return StringValue{Value: output}
-// 			},
-// 		},
-// 		"addPaddingRight": NativeFunctionValue{
-// 			Value: func(args []RuntimeValue) RuntimeValue {
-// 				char := args[0].GetStr()
-// 				length := int(args[1].GetNumber())
-// 				actualLength := len(s.GetStr())
-// 				output := s.Value
-// 				for i := 0; i < length-actualLength; i++ {
-// 					output = output + char
-// 				}
-// 				return StringValue{Value: output}
-// 			},
-// 		},
-// 		"trim": NativeFunctionValue{
-// 			Value: func(args []RuntimeValue) RuntimeValue {
+				needed := " "
+				if len(args) > 0 {
+					needed = args[0].String()
+				}
+				return RuntimeValue{Type: StringType, Value: strings.Trim(name, needed)}
+			},
+		},
+		"toArray": {Type: NativeFunctionType,
+			Value: func(args []RuntimeValue) RuntimeValue {
 
-// 				needed := " "
-// 				if len(args) > 0 {
-// 					needed = args[0].GetStr()
-// 				}
-// 				return StringValue{Value: strings.Trim(s.Value, needed)}
-// 			},
-// 		},
-// 		"toArray": NativeFunctionValue{
-// 			Value: func(args []RuntimeValue) RuntimeValue {
+				sep := ""
 
-// 				sep := ""
+				if len(args) > 0 {
+					sep = args[0].String()
+				}
 
-// 				if len(args) > 0 {
-// 					sep = args[0].GetStr()
-// 				}
+				arr := ArrayValue{Value: make([]RuntimeValue, 0)}
 
-// 				arr := ArrayValue{Value: make([]RuntimeValue, 0)}
+				values := strings.Split(value, sep)
 
-// 				values := strings.Split(s.Value, sep)
+				for _, value := range values {
+					arr.Value = append(arr.Value, RuntimeValue{Type: StringType, Value: value})
+				}
 
-// 				for _, value := range values {
-// 					arr.Value = append(arr.Value, StringValue{Value: value})
-// 				}
+				return RuntimeValue{Type: ArrayType, Value: &arr}
+			},
+		},
+		"len": {Type: NativeFunctionType, Value: func(args []RuntimeValue) RuntimeValue {
+			return RuntimeValue{Type: NumberType, Value: float64(len(value))}
+		}},
+		"slice": {Type: NativeFunctionType, Value: func(args []RuntimeValue) RuntimeValue {
+			length := len(value)
+			if len(args) == 2 {
+				from := int(args[0].Value.(float64))
+				to := int(args[1].Value.(float64))
+				if to < 0 {
+					to = length + to
+				}
+				if from < 0 {
+					from = length + from
+				}
+				if from > length || to > length {
+					return RuntimeValue{Type: ErrorType, Value: "Index out of range [" + strconv.FormatFloat(args[0].Value.(float64), 'f', -1, 64) + ":" + strconv.FormatFloat(args[1].Value.(float64), 'f', -1, 64) + "]"}
+				}
+				return RuntimeValue{Type: StringType, Value: value[from:to]}
+			} else if len(args) == 1 {
+				from := int(args[0].Value.(float64))
+				if from < 0 {
+					from = length + from
+				}
+				if from > length {
+					return RuntimeValue{Type: ErrorType, Value: "Index out of range [" + strconv.FormatFloat(args[0].Value.(float64), 'f', -1, 64) + "]"}
+				}
+				return RuntimeValue{Type: StringType, Value: value[from:]}
+			} else {
+				return RuntimeValue{Type: StringType, Value: ""}
+			}
+		},
+		},
+	}
 
-// 				return &arr
-// 			},
-// 		},
-// 		"slice": NativeFunctionValue{
-// 			Value: func(args []RuntimeValue) RuntimeValue {
-// 				length := len(s.Value)
-// 				if len(args) == 2 {
-// 					from := int(args[0].GetNumber())
-// 					to := int(args[1].GetNumber())
-// 					if to < 0 {
-// 						to = length + to
-// 					}
-// 					if from < 0 {
-// 						from = length + from
-// 					}
-// 					if from > length || to > length {
-// 						return ErrorValue{Value: "Index out of range [" + strconv.FormatFloat(args[0].GetNumber(), 'f', -1, 64) + ":" + strconv.FormatFloat(args[1].GetNumber(), 'f', -1, 64) + "]"}
-// 					}
-// 					return StringValue{Value: s.Value[from:to]}
-// 				} else if len(args) == 1 {
-// 					from := int(args[0].GetNumber())
-// 					if from < 0 {
-// 						from = length + from
-// 					}
-// 					if from > length {
-// 						return ErrorValue{Value: "Index out of range [" + strconv.FormatFloat(args[0].GetNumber(), 'f', -1, 64) + "]"}
-// 					}
-// 					return StringValue{Value: s.Value[from:]}
-// 				} else {
-// 					return StringValue{Value: ""}
-// 				}
-// 			},
-// 		},
-// 	}
+	p, ex := props[name]
+	if !ex {
+		return RuntimeValue{}, fmt.Errorf("Property %s not found", name)
+	}
 
-// 	return props[name]
-// }
-
-func StringLength(v *RuntimeValue) RuntimeValue {
-	return RuntimeValue{Type: NumberType, Value: float64(len(v.Value.(string)))}
+	return p, nil
 }

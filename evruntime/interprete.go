@@ -623,7 +623,7 @@ func (e Evaluator) EvaluateSliceExpression(node parser.SliceExpNode, env *enviro
 	switch value.Type {
 	case values.ArrayType:
 
-		fn, err := value.Value.(*values.ArrayValue).GetProp(value.Value.(*values.ArrayValue), "slice")
+		fn, err := value.Value.(*values.ArrayValue).GetProp(&value, "slice")
 
 		if err != nil {
 			return e.Panic(err.Error(), node.Line, env)
@@ -710,9 +710,9 @@ func (e Evaluator) EvaluateMemberExpression(node parser.MemberExpNode, env *envi
 		return varValue
 	}
 
-	if varValue.Type == values.ArrayType {
-		varValue, _ = env.GetVar("arr", 100)
-	}
+	// if varValue.Type == values.ArrayType {
+	// 	varValue, _ = env.GetVar("arr", 100)
+	// }
 
 	fn, err := varValue.GetProp(&varValue, node.Member.Value)
 

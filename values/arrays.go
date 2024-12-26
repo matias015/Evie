@@ -6,7 +6,7 @@ type ArrayValue struct {
 	Value []RuntimeValue
 }
 
-func (a *ArrayValue) GetProp(v *ArrayValue, name string) (RuntimeValue, error) {
+func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
 
 	props := map[string]RuntimeValue{
 		"slice": {Type: NativeFunctionType,
@@ -55,60 +55,60 @@ func (a *ArrayValue) GetProp(v *ArrayValue, name string) (RuntimeValue, error) {
 				return RuntimeValue{Type: BoolType, Value: true}
 			},
 		},
-		// "has": RuntimeValue{Type: NativeFunctionType,
-		// 	Value: func(args []RuntimeValue) RuntimeValue {
-		// 		if len(args) == 1 {
-		// 			for _, arg := range args {
-		// 				for _, val := range a.Value {
-		// 					if arg.GetStr() == val.GetStr() {
-		// 						if arg.GetType() == val.GetType() {
-		// 							return BooleanValue{Value: true}
-		// 						}
-		// 					}
-		// 				}
-		// 			}
-		// 			return BooleanValue{Value: false}
-		// 		} else if len(args) > 1 {
+		"has": {Type: NativeFunctionType,
+			Value: func(args []RuntimeValue) RuntimeValue {
+				if len(args) == 1 {
+					for _, arg := range args {
+						for _, val := range a.Value {
+							if arg.Type == val.Type {
+								if arg.String() == val.String() {
+									return RuntimeValue{Type: BoolType, Value: true}
+								}
+							}
+						}
+					}
+					return RuntimeValue{Type: BoolType, Value: false}
+				} else if len(args) > 1 {
 
-		// 			has := false
+					has := false
 
-		// 			for _, arg := range args {
-		// 				has = false
-		// 				for _, val := range a.Value {
-		// 					if arg.GetStr() == val.GetStr() {
-		// 						if arg.GetType() == val.GetType() {
-		// 							has = true
-		// 							break
-		// 						}
-		// 					}
-		// 				}
+					for _, arg := range args {
+						has = false
+						for _, val := range a.Value {
+							if arg.Type == val.Type {
+								if arg.String() == val.String() {
+									has = true
+									break
+								}
+							}
+						}
 
-		// 				if has == false {
-		// 					return BooleanValue{Value: false}
-		// 				}
+						if has == false {
+							return RuntimeValue{Type: BoolType, Value: false}
+						}
 
-		// 			}
-		// 			return BooleanValue{Value: true}
-		// 		} else {
-		// 			return BooleanValue{Value: false}
-		// 		}
-		// 	},
-		// },
-		// "find": RuntimeValue{Type: NativeFunctionType,
-		// 	Value: func(args []RuntimeValue) RuntimeValue {
-		// 		arg := args[0]
+					}
+					return RuntimeValue{Type: BoolType, Value: true}
+				} else {
+					return RuntimeValue{Type: BoolType, Value: false}
+				}
+			},
+		},
+		"find": {Type: NativeFunctionType,
+			Value: func(args []RuntimeValue) RuntimeValue {
+				arg := args[0]
 
-		// 		for index, value := range a.Value {
-		// 			if arg.GetStr() == value.GetStr() {
-		// 				if arg.GetType() == value.GetType() {
-		// 					return NumberValue{Value: float64(index)}
-		// 				}
-		// 			}
-		// 		}
+				for index, value := range a.Value {
+					if arg.Type == value.Type {
+						if arg.String() == value.String() {
+							return RuntimeValue{Type: NumberType, Value: float64(index)}
+						}
+					}
+				}
 
-		// 		return NumberValue{Value: float64(-1)}
-		// 	},
-		// },
+				return RuntimeValue{Type: NumberType, Value: -1.0}
+			},
+		},
 		"len": {Type: NativeFunctionType,
 			Value: func(args []RuntimeValue) RuntimeValue {
 				return RuntimeValue{Type: NumberType, Value: float64(len(a.Value))}
