@@ -28,61 +28,61 @@ func (s FileValue) GetType() string {
 func (s *FileValue) GetProp(v *values.RuntimeValue, name string) values.RuntimeValue {
 	props := map[string]values.RuntimeValue{}
 
-	props = map[string]values.RuntimeValue{
-		"readLine": values.NativeFunctionValue{
-			Value: func(args []values.RuntimeValue) values.RuntimeValue {
+	// props = map[string]values.RuntimeValue{
+	// 	"readLine": values.NativeFunctionValue{
+	// 		Value: func(args []values.RuntimeValue) values.RuntimeValue {
 
-				if s.Closed {
-					return values.ErrorValue{Value: "File is closed"}
-				}
+	// 			if s.Closed {
+	// 				return values.ErrorValue{Value: "File is closed"}
+	// 			}
 
-				success := s.Scanner.Scan()
-				if !success {
-					if err := s.Scanner.Err(); err != nil {
-						return values.ErrorValue{Value: err.Error()}
-					} else {
-						return values.StringValue{Value: "EOF"}
-					}
-				}
-				return values.StringValue{Value: s.Scanner.Text()}
-			},
-		},
-		"appendLine": values.NativeFunctionValue{
-			Value: func(args []values.RuntimeValue) values.RuntimeValue {
-				_, err := s.Value.WriteString(args[0].GetStr() + "\n")
+	// 			success := s.Scanner.Scan()
+	// 			if !success {
+	// 				if err := s.Scanner.Err(); err != nil {
+	// 					return values.ErrorValue{Value: err.Error()}
+	// 				} else {
+	// 					return values.StringValue{Value: "EOF"}
+	// 				}
+	// 			}
+	// 			return values.StringValue{Value: s.Scanner.Text()}
+	// 		},
+	// 	},
+	// 	"appendLine": values.NativeFunctionValue{
+	// 		Value: func(args []values.RuntimeValue) values.RuntimeValue {
+	// 			_, err := s.Value.WriteString(args[0].GetStr() + "\n")
 
-				if err != nil {
-					return values.ErrorValue{Value: err.Error()}
-				}
-				return values.BooleanValue{Value: true}
-			},
-		},
-		"append": values.NativeFunctionValue{
-			Value: func(args []values.RuntimeValue) values.RuntimeValue {
-				s.Value.WriteString(args[0].GetStr())
-				return values.BooleanValue{Value: true}
-			},
-		},
-		"close": values.NativeFunctionValue{
-			Value: func(args []values.RuntimeValue) values.RuntimeValue {
-				s.Closed = true
-				s.Value.Close()
-				return values.BooleanValue{Value: true}
-			},
-		},
-		"seek": values.NativeFunctionValue{
-			Value: func(args []values.RuntimeValue) values.RuntimeValue {
-				arg := args[0]
-				_, err := s.Value.Seek(0, int(arg.GetNumber()))
+	// 			if err != nil {
+	// 				return values.ErrorValue{Value: err.Error()}
+	// 			}
+	// 			return values.BooleanValue{Value: true}
+	// 		},
+	// 	},
+	// 	"append": values.NativeFunctionValue{
+	// 		Value: func(args []values.RuntimeValue) values.RuntimeValue {
+	// 			s.Value.WriteString(args[0].GetStr())
+	// 			return values.BooleanValue{Value: true}
+	// 		},
+	// 	},
+	// 	"close": values.NativeFunctionValue{
+	// 		Value: func(args []values.RuntimeValue) values.RuntimeValue {
+	// 			s.Closed = true
+	// 			s.Value.Close()
+	// 			return values.BooleanValue{Value: true}
+	// 		},
+	// 	},
+	// 	"seek": values.NativeFunctionValue{
+	// 		Value: func(args []values.RuntimeValue) values.RuntimeValue {
+	// 			arg := args[0]
+	// 			_, err := s.Value.Seek(0, int(arg.GetNumber()))
 
-				if err != nil {
-					return values.ErrorValue{Value: err.Error()}
-				}
+	// 			if err != nil {
+	// 				return values.ErrorValue{Value: err.Error()}
+	// 			}
 
-				return values.BooleanValue{Value: true}
-			},
-		},
-	}
+	// 			return values.BooleanValue{Value: true}
+	// 		},
+	// 	},
+	// }
 
 	return props[name]
 }
@@ -96,67 +96,67 @@ func GetFileStruct() values.StructValue {
 
 func Load(env *environment.Environment) {
 
-	env.DeclareVar("File", GetFileStruct())
+	env.DeclareVar("File", values.RuntimeValue{Type: values.StructType, Value: GetFileStruct()})
 
 	structValue := values.StructValue{}
 	structValue.Properties = []string{"fs"}
 
 	structValue.Methods = make(map[string]values.RuntimeValue)
 
-	structValue.Methods["read"] = values.NativeFunctionValue{Value: ReadFile}
-	structValue.Methods["open"] = values.NativeFunctionValue{Value: OpenFile}
-	structValue.Methods["exists"] = values.NativeFunctionValue{Value: FileExists}
-	structValue.Methods["remove"] = values.NativeFunctionValue{Value: RemoveFile}
+	structValue.Methods["read"] = values.RuntimeValue{Type: values.NativeFunctionType, Value: ReadFile}
+	// structValue.Methods["open"] = values.RuntimeValue{Type: "NativeFunction", Value: OpenFile}
+	// structValue.Methods["exists"] = values.RuntimeValue{Type: "NativeFunction", Value: FileExists}
+	// structValue.Methods["remove"] = values.RuntimeValue{Type: "NativeFunction", Value: RemoveFile}
 
 	obj := values.ObjectValue{}
 	obj.Struct = structValue
 	obj.Value = make(map[string]values.RuntimeValue)
 
-	env.DeclareVar("fs", obj)
+	env.DeclareVar("fs", values.RuntimeValue{Type: values.ObjectType, Value: obj})
 
 }
 
 func ReadFile(args []values.RuntimeValue) values.RuntimeValue {
-	datosComoBytes, err := os.ReadFile(args[0].GetStr())
+	datosComoBytes, err := os.ReadFile(args[0].Value.(string))
 	if err != nil {
 		log.Fatal(err)
 	}
 	// convertir el arreglo a string
 	datosComoString := string(datosComoBytes)
 	// imprimir el string
-	return values.StringValue{Value: datosComoString}
+	return values.RuntimeValue{Type: values.StringType, Value: datosComoString}
 }
 
-func OpenFile(args []values.RuntimeValue) values.RuntimeValue {
+// func OpenFile(args []values.RuntimeValue) values.RuntimeValue {
 
-	file, err := os.OpenFile(args[0].GetStr(), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
+// 	file, err := os.OpenFile(args[0].GetStr(), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 
-	if err != nil {
-		return values.ErrorValue{Value: err.Error()}
-	}
+// 	if err != nil {
+// 		return values.ErrorValue{Value: err.Error()}
+// 	}
 
-	f := FileValue{}
+// 	f := FileValue{}
 
-	f.Value = file
-	f.Scanner = bufio.NewScanner(file)
-	f.Closed = false
+// 	f.Value = file
+// 	f.Scanner = bufio.NewScanner(file)
+// 	f.Closed = false
 
-	return &f
-}
+// 	return &f
+// }
 
-func FileExists(args []values.RuntimeValue) values.RuntimeValue {
-	arg := args[0]
-	_, err := os.Stat(arg.GetStr())
-	if err != nil {
-		return values.BooleanValue{Value: false}
-	}
-	return values.BooleanValue{Value: true}
-}
+// func FileExists(args []values.RuntimeValue) values.RuntimeValue {
+// 	arg := args[0]
+// 	_, err := os.Stat(arg.GetStr())
+// 	if err != nil {
+// 		return values.BooleanValue{Value: false}
+// 	}
+// 	return values.BooleanValue{Value: true}
+// }
 
-func RemoveFile(args []values.RuntimeValue) values.RuntimeValue {
-	err := os.Remove(args[0].GetStr())
-	if err != nil {
-		return values.ErrorValue{Value: err.Error()}
-	}
-	return values.BooleanValue{Value: true}
-}
+// func RemoveFile(args []values.RuntimeValue) values.RuntimeValue {
+// 	err := os.Remove(args[0].GetStr())
+// 	if err != nil {
+// 		return values.ErrorValue{Value: err.Error()}
+// 	}
+// 	return values.BooleanValue{Value: true}
+// }

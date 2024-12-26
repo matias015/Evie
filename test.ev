@@ -1,16 +1,8 @@
-var init = time()
 
-fn test(n){
+var x = {a:1, b:2}
 
-	return n < 100000 ? test(n + 2) : n
+x["a"] = 23234
 
-}
+x.add("c", 3)
 
-var result = test(0)
-
-
-
-print(result)
-var end = time()
-
-print("Total time: ", (end-init)/1000, " seg")
+print(x.has("f"))

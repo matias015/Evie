@@ -6,33 +6,15 @@ type ArrayValue struct {
 	Value []RuntimeValue
 }
 
-func (a ArrayValue) GetNumber() float64 {
-	return float64(len(a.Value))
-}
-func (a ArrayValue) GetType() string {
-	return "ArrayValue"
-}
-
-func (a ArrayValue) GetStr() string {
-	return "array"
-}
-func (a ArrayValue) GetBool() bool {
-	if len(a.Value) > 0 {
-		return true
-	} else {
-		return false
-	}
-}
-
-func (a ArrayValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
+func (a *ArrayValue) GetProp(v *ArrayValue, name string) (RuntimeValue, error) {
 
 	props := map[string]RuntimeValue{
-		"slice": NativeFunctionValue{
+		"slice": {Type: NativeFunctionType,
 			Value: func(args []RuntimeValue) RuntimeValue {
 				length := len(a.Value)
 				if len(args) == 2 {
-					from := int(args[0].GetNumber())
-					to := int(args[1].GetNumber())
+					from := int(args[0].Value.(float64))
+					to := int(args[1].Value.(float64))
 					if to < 0 {
 						to = length + to
 					}
@@ -40,101 +22,110 @@ func (a ArrayValue) GetProp(v *RuntimeValue, name string) RuntimeValue {
 						from = length + from
 					}
 					if from > length || to > length {
-						return ErrorValue{Value: "Index out of range [" + strconv.FormatFloat(args[0].GetNumber(), 'f', -1, 64) + ":" + strconv.FormatFloat(args[1].GetNumber(), 'f', -1, 64) + "]"}
+						return RuntimeValue{Type: ErrorType, Value: "Index out of range [" + strconv.FormatFloat(args[0].Value.(float64), 'f', -1, 64) + ":" + strconv.FormatFloat(args[1].Value.(float64), 'f', -1, 64) + "]"}
 					}
-					return &ArrayValue{Value: a.Value[from:to]}
+					return RuntimeValue{Type: ArrayType, Value: &ArrayValue{Value: a.Value[from:to]}}
 				} else if len(args) == 1 {
-					from := int(args[0].GetNumber())
+					from := int(args[0].Value.(float64))
 					if from < 0 {
 						from = length + from
 					}
 					if from > length {
-						return ErrorValue{Value: "Index out of range [" + strconv.FormatFloat(args[0].GetNumber(), 'f', -1, 64) + "]"}
+						return RuntimeValue{Type: ErrorType, Value: "Index out of range [" + strconv.FormatFloat(args[0].Value.(float64), 'f', -1, 64) + "]"}
 					}
-					return &ArrayValue{Value: a.Value[from:]}
+					return RuntimeValue{Type: ArrayType, Value: &ArrayValue{Value: a.Value[from:]}}
 				} else {
-					return &ArrayValue{Value: []RuntimeValue{}}
+					return RuntimeValue{Type: ArrayType, Value: &ArrayValue{Value: []RuntimeValue{}}}
 				}
 			},
 		},
-		"add": NativeFunctionValue{
+		"add": {Type: NativeFunctionType,
 			Value: func(args []RuntimeValue) RuntimeValue {
-				val := (*v).(*ArrayValue)
 				for _, arg := range args {
-					val.Value = append(val.Value, arg)
+					a.Value = append(a.Value, arg)
 				}
-				return BooleanValue{Value: true}
+				return RuntimeValue{Type: BoolType, Value: true}
 			},
 		},
-		"addFirst": NativeFunctionValue{
+		"addFirst": {Type: NativeFunctionType,
 			Value: func(args []RuntimeValue) RuntimeValue {
-				val := (*v).(*ArrayValue)
 				for _, arg := range args {
-					val.Value = append([]RuntimeValue{arg}, val.Value...)
+					a.Value = append([]RuntimeValue{arg}, a.Value...)
 				}
-				return BooleanValue{Value: true}
+				return RuntimeValue{Type: BoolType, Value: true}
 			},
 		},
-		"has": NativeFunctionValue{
+		// "has": RuntimeValue{Type: NativeFunctionType,
+		// 	Value: func(args []RuntimeValue) RuntimeValue {
+		// 		if len(args) == 1 {
+		// 			for _, arg := range args {
+		// 				for _, val := range a.Value {
+		// 					if arg.GetStr() == val.GetStr() {
+		// 						if arg.GetType() == val.GetType() {
+		// 							return BooleanValue{Value: true}
+		// 						}
+		// 					}
+		// 				}
+		// 			}
+		// 			return BooleanValue{Value: false}
+		// 		} else if len(args) > 1 {
+
+		// 			has := false
+
+		// 			for _, arg := range args {
+		// 				has = false
+		// 				for _, val := range a.Value {
+		// 					if arg.GetStr() == val.GetStr() {
+		// 						if arg.GetType() == val.GetType() {
+		// 							has = true
+		// 							break
+		// 						}
+		// 					}
+		// 				}
+
+		// 				if has == false {
+		// 					return BooleanValue{Value: false}
+		// 				}
+
+		// 			}
+		// 			return BooleanValue{Value: true}
+		// 		} else {
+		// 			return BooleanValue{Value: false}
+		// 		}
+		// 	},
+		// },
+		// "find": RuntimeValue{Type: NativeFunctionType,
+		// 	Value: func(args []RuntimeValue) RuntimeValue {
+		// 		arg := args[0]
+
+		// 		for index, value := range a.Value {
+		// 			if arg.GetStr() == value.GetStr() {
+		// 				if arg.GetType() == value.GetType() {
+		// 					return NumberValue{Value: float64(index)}
+		// 				}
+		// 			}
+		// 		}
+
+		// 		return NumberValue{Value: float64(-1)}
+		// 	},
+		// },
+		"len": {Type: NativeFunctionType,
 			Value: func(args []RuntimeValue) RuntimeValue {
-				if len(args) == 1 {
-					for _, arg := range args {
-						for _, val := range a.Value {
-							if arg.GetStr() == val.GetStr() {
-								if arg.GetType() == val.GetType() {
-									return BooleanValue{Value: true}
-								}
-							}
-						}
-					}
-					return BooleanValue{Value: false}
-				} else if len(args) > 1 {
-
-					has := false
-
-					for _, arg := range args {
-						has = false
-						for _, val := range a.Value {
-							if arg.GetStr() == val.GetStr() {
-								if arg.GetType() == val.GetType() {
-									has = true
-									break
-								}
-							}
-						}
-
-						if has == false {
-							return BooleanValue{Value: false}
-						}
-
-					}
-					return BooleanValue{Value: true}
-				} else {
-					return BooleanValue{Value: false}
-				}
-			},
-		},
-		"find": NativeFunctionValue{
-			Value: func(args []RuntimeValue) RuntimeValue {
-				arg := args[0]
-
-				for index, value := range a.Value {
-					if arg.GetStr() == value.GetStr() {
-						if arg.GetType() == value.GetType() {
-							return NumberValue{Value: float64(index)}
-						}
-					}
-				}
-
-				return NumberValue{Value: float64(-1)}
-			},
-		},
-		"len": NativeFunctionValue{
-			Value: func(args []RuntimeValue) RuntimeValue {
-				return NumberValue{Value: float64(len(a.Value))}
+				return RuntimeValue{Type: NumberType, Value: float64(len(a.Value))}
 			},
 		},
 	}
 
-	return props[name]
+	return props[name], nil
+}
+
+func ArrayAdd(val *RuntimeValue, args []RuntimeValue) {
+	// First, get the current slice from the interface{}
+	currentSlice := val.Value.(*[]RuntimeValue)
+
+	// Append the new value
+	newSlice := append(*currentSlice, RuntimeValue{Type: NumberType, Value: float64(34)})
+
+	// Important: Update the interface{} Value with the new slice
+	val.Value = newSlice
 }

@@ -12,7 +12,6 @@ loop {
 	if i >= 100{
 		break
 	}
-	print(i)
 	print(hash())
 
 	i = i + 1

@@ -1,6 +1,6 @@
 package parser
 
-type NodeType int
+type NodeType uint8
 
 // INTERFACES
 type Stmt interface {

@@ -16,9 +16,10 @@ fn fibonacciTer(n){
     return (n == 0? 0 : (n == 1? 1:fibonacciTer(n-1) + fibonacciTer(n-2)))
 }
 
-// 16 -> aprox 3.667 seg
-// 17 -> aprox 10.1 seg
-var u = 31
+// 31 -> aprox 4.7 seg - 4.2
+// 32 -> aprox 7.7 seg - 6.75
+// 33 -> aprox 12.5 seg - 11
+var u = 33
 var r = 0
 var i = 0
 loop{
@@ -27,10 +28,9 @@ loop{
         break
     }
     
-    r = r+ fibonacci(i)
+    r = r+ fibonacciTer(i)
 }
 print(r)
-
 
 
 var end = time()
