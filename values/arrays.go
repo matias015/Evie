@@ -1,73 +1,81 @@
 package values
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type ArrayValue struct {
 	Value []RuntimeValue
 }
 
+func (a ArrayValue) GetType() ValueType {
+	return ArrayType
+}
+
+func (a ArrayValue) GetString() string {
+	return "array"
+}
+
 func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
 
 	props := map[string]RuntimeValue{
-		"slice": {Type: NativeFunctionType,
-			Value: func(args []RuntimeValue) RuntimeValue {
-				length := len(a.Value)
-				if len(args) == 2 {
-					from := int(args[0].Value.(float64))
-					to := int(args[1].Value.(float64))
-					if to < 0 {
-						to = length + to
-					}
-					if from < 0 {
-						from = length + from
-					}
-					if from > length || to > length {
-						return RuntimeValue{Type: ErrorType, Value: "Index out of range [" + strconv.FormatFloat(args[0].Value.(float64), 'f', -1, 64) + ":" + strconv.FormatFloat(args[1].Value.(float64), 'f', -1, 64) + "]"}
-					}
-					return RuntimeValue{Type: ArrayType, Value: &ArrayValue{Value: a.Value[from:to]}}
-				} else if len(args) == 1 {
-					from := int(args[0].Value.(float64))
-					if from < 0 {
-						from = length + from
-					}
-					if from > length {
-						return RuntimeValue{Type: ErrorType, Value: "Index out of range [" + strconv.FormatFloat(args[0].Value.(float64), 'f', -1, 64) + "]"}
-					}
-					return RuntimeValue{Type: ArrayType, Value: &ArrayValue{Value: a.Value[from:]}}
-				} else {
-					return RuntimeValue{Type: ArrayType, Value: &ArrayValue{Value: []RuntimeValue{}}}
+		"slice": NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+			length := len(a.Value)
+			if len(args) == 2 {
+				from := int(args[0].(NumberValue).Value)
+				to := int(args[1].(NumberValue).Value)
+				if to < 0 {
+					to = length + to
 				}
-			},
-		},
-		"add": {Type: NativeFunctionType,
-			Value: func(args []RuntimeValue) RuntimeValue {
-				for _, arg := range args {
-					a.Value = append(a.Value, arg)
+				if from < 0 {
+					from = length + from
 				}
-				return RuntimeValue{Type: BoolType, Value: true}
-			},
+				if from > length || to > length {
+					return ErrorValue{Value: "Index out of range [" + strconv.Itoa(from) + ":" + strconv.Itoa(to) + "]"}
+				}
+				return &ArrayValue{Value: a.Value[from:to]}
+			} else if len(args) == 1 {
+				from := int(args[0].(NumberValue).Value)
+				if from < 0 {
+					from = length + from
+				}
+				if from > length {
+					return ErrorValue{Value: "Index out of range [" + strconv.Itoa(from) + "]"}
+				}
+				return &ArrayValue{Value: a.Value[from:]}
+			} else {
+				return &ArrayValue{Value: []RuntimeValue{}}
+			}
 		},
-		"addFirst": {Type: NativeFunctionType,
+		},
+		"add": NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+			for _, arg := range args {
+				a.Value = append(a.Value, arg)
+			}
+			return BoolValue{Value: true}
+		},
+		},
+		"addFirst": NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
 				for _, arg := range args {
 					a.Value = append([]RuntimeValue{arg}, a.Value...)
 				}
-				return RuntimeValue{Type: BoolType, Value: true}
+				return BoolValue{Value: true}
 			},
 		},
-		"has": {Type: NativeFunctionType,
+		"has": NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
 				if len(args) == 1 {
 					for _, arg := range args {
 						for _, val := range a.Value {
-							if arg.Type == val.Type {
-								if arg.String() == val.String() {
-									return RuntimeValue{Type: BoolType, Value: true}
+							if arg.GetType() == val.GetType() {
+								if arg.GetString() == val.GetString() {
+									return BoolValue{Value: true}
 								}
 							}
 						}
 					}
-					return RuntimeValue{Type: BoolType, Value: false}
+					return BoolValue{Value: false}
 				} else if len(args) > 1 {
 
 					has := false
@@ -75,8 +83,8 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 					for _, arg := range args {
 						has = false
 						for _, val := range a.Value {
-							if arg.Type == val.Type {
-								if arg.String() == val.String() {
+							if arg.GetType() == val.GetType() {
+								if arg.GetString() == val.GetString() {
 									has = true
 									break
 								}
@@ -84,34 +92,34 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 						}
 
 						if has == false {
-							return RuntimeValue{Type: BoolType, Value: false}
+							return BoolValue{Value: false}
 						}
 
 					}
-					return RuntimeValue{Type: BoolType, Value: true}
+					return BoolValue{Value: true}
 				} else {
-					return RuntimeValue{Type: BoolType, Value: false}
+					return BoolValue{Value: false}
 				}
 			},
 		},
-		"find": {Type: NativeFunctionType,
+		"find": NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
 				arg := args[0]
 
 				for index, value := range a.Value {
-					if arg.Type == value.Type {
-						if arg.String() == value.String() {
-							return RuntimeValue{Type: NumberType, Value: float64(index)}
+					if arg.GetType() == value.GetType() {
+						if arg.GetString() == value.GetString() {
+							return NumberValue{Value: float64(index)}
 						}
 					}
 				}
 
-				return RuntimeValue{Type: NumberType, Value: -1.0}
+				return NumberValue{Value: -1.0}
 			},
 		},
-		"len": {Type: NativeFunctionType,
+		"len": NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
-				return RuntimeValue{Type: NumberType, Value: float64(len(a.Value))}
+				return NumberValue{Value: float64(len(a.Value))}
 			},
 		},
 	}
@@ -121,11 +129,8 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 
 func ArrayAdd(val *RuntimeValue, args []RuntimeValue) {
 	// First, get the current slice from the interface{}
-	currentSlice := val.Value.(*[]RuntimeValue)
+	currentSlice := (*val).(*ArrayValue)
 
-	// Append the new value
-	newSlice := append(*currentSlice, RuntimeValue{Type: NumberType, Value: float64(34)})
+	currentSlice.Value = append(currentSlice.Value, args...)
 
-	// Important: Update the interface{} Value with the new slice
-	val.Value = newSlice
 }

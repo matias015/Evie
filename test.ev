@@ -1,4 +1,3 @@
+import os
 
-var x = "Hello"
-
-print(x.addPaddingRight("xd",20))
+os.createDir("d")

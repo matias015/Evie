@@ -31,7 +31,6 @@ type Environment struct {
 
 func (e *Environment) PushScope() {
 	myMap := mapPool.Get().(map[string]values.RuntimeValue)
-
 	e.Variables = append(e.Variables, myMap)
 }
 
@@ -61,7 +60,7 @@ func (e *Environment) GetVar(name string, line int) (values.RuntimeValue, error)
 			return val, nil
 		}
 	}
-	return values.RuntimeValue{Type: values.NothingType}, fmt.Errorf("variable '%s' not found", name)
+	return values.NothingValue{}, fmt.Errorf("variable '%s' not found", name)
 }
 
 func (e *Environment) ForceDeclare(name string, value values.RuntimeValue) (bool, error) {
@@ -123,29 +122,29 @@ func (e *Environment) ModifyMemberValue(left parser.MemberExpNode, value values.
 
 		// In each iteration, access to the next property of the chain in
 		// the value should be an array
-		switch endValue.Type {
+		switch endValue.GetType() {
 		case values.ObjectType: // each prop of chain is a str so convert to int
-			endValue = endValue.Value.(values.ObjectValue).Value[el] // access to the next property of the chain in the array
+			endValue = endValue.(values.ObjectValue).Value[el] // access to the next property of the chain in the array
 		default:
 			return false, fmt.Errorf("Only objects can be accessed by dot notation")
 		}
 	}
 
 	// Assign the value
-	switch endValue.Type {
+	switch endValue.GetType() {
 	case values.ObjectType:
 
 		// Get the last element of the chain and convert it to int
 		lastIndex := chain[len(chain)-1]
 
-		_, propExists := endValue.Value.(*values.ObjectValue).Value[lastIndex]
+		_, propExists := endValue.(*values.ObjectValue).Value[lastIndex]
 
 		if !propExists {
 			return false, fmt.Errorf("Undefined property '" + chain[len(chain)-1] + "' in object")
 		}
 
 		// Assign the value
-		endValue.Value.(*values.ObjectValue).Value[lastIndex] = value
+		endValue.(*values.ObjectValue).Value[lastIndex] = value
 
 		return true, nil
 	default:
@@ -174,57 +173,41 @@ func (e *Environment) ModifyIndexValue(left parser.IndexAccessExpNode, value val
 
 		// In each iteration, access to the next property of the chain in
 		// the value should be an array
-		switch endValue.Type {
+		switch endValue.GetType() {
 		case values.ArrayType:
-			elToInt, _ := strconv.Atoi(el)                             // each prop of chain is a str so convert to int
-			endValue = endValue.Value.([]values.RuntimeValue)[elToInt] // access to the next property of the chain in the array
+			elToInt, _ := strconv.Atoi(el)                          // each prop of chain is a str so convert to int
+			endValue = endValue.(*values.ArrayValue).Value[elToInt] // access to the next property of the chain in the array
 		case values.DictionaryType:
-			endValue = endValue.Value.(map[string]values.RuntimeValue)[el]
-		case values.StringType:
-			endValue = endValue
+			endValue = endValue.(*values.DictionaryValue).Value[el]
 		default:
-			return false, fmt.Errorf("Only arrays and dictionaries can be accessed by index")
+			return false, fmt.Errorf("Only arrays and dictionaries can be modified by index access")
 		}
 	}
 
 	// Assign the value
-	switch endValue.Type {
+	switch endValue.GetType() {
 	case values.ArrayType:
 		// Get the last element of the chain and convert it to int
 		lastIndex, _ := strconv.Atoi(chain[len(chain)-1])
 		// Assign the value
-		if lastIndex >= len(endValue.Value.([]values.RuntimeValue)) {
+		if lastIndex >= len(endValue.(*values.ArrayValue).Value) {
 			return false, fmt.Errorf("Index " + chain[len(chain)-1] + " out of range")
 		}
-		endValue.Value.([]values.RuntimeValue)[lastIndex] = value
+		endValue.(*values.ArrayValue).Value[lastIndex] = value
 	case values.DictionaryType:
 		// Get the last element of the chain and convert it to int
 		lastIndex := chain[len(chain)-1]
 
-		_, propExists := endValue.Value.(*values.DictionaryValue).Value[lastIndex]
+		_, propExists := endValue.(*values.DictionaryValue).Value[lastIndex]
 
 		if !propExists {
 			return false, fmt.Errorf("Undefined property '" + chain[len(chain)-1] + "' in dictionary")
 		}
 
 		// Assign the value
-		endValue.Value.(*values.DictionaryValue).Value[lastIndex] = value
-	case values.StringType:
-		lastIndex, _ := strconv.Atoi(chain[len(chain)-1])
-		text := endValue.Value.(string)
-		init := text[0:lastIndex]
-		end := text[lastIndex+1:]
-
-		_ = values.RuntimeValue{Type: values.StringType, Value: init + value.Value.(string) + end}
-
-		return true, nil
-
-		// fn := val.GetProp(&endValue, "set")
-		// res := fn.(values.NativeFunctionValue).Value([]values.RuntimeValue{setValue})
-
-		// if res.GetType() == "ErrorValue" {
-		// 	return false, fmt.Errorf("Error: " + res.GetStr())
-		// }
+		endValue.(*values.DictionaryValue).Value[lastIndex] = value
+	default:
+		return false, fmt.Errorf("Only arrays and dictionaries can be modified by index access")
 	}
 	return true, nil
 }
@@ -253,5 +236,5 @@ func (e *Environment) ResolveMemberAccessChain(node parser.MemberExpNode) []stri
 
 func Stop(msg string, line int, mod string) values.RuntimeValue {
 	output := "Error in line " + fmt.Sprint(line) + " at module " + mod + ":\n" + msg + "\n"
-	return values.RuntimeValue{Type: values.ErrorType, Value: output}
+	return values.ErrorValue{Value: output}
 }

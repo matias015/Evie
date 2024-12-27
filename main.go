@@ -36,6 +36,7 @@ func main() {
 
 	env := environment.NewEnvironment()
 	native.SetupEnvironment(env)
+	env.ModuleName = file
 
 	// start := time.Now()
 	intr := evruntime.Evaluator{Nodes: ast}
