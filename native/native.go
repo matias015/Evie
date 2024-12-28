@@ -20,8 +20,13 @@ func SetupEnvironment(env *environment.Environment) {
 	env.DeclareVar("input", values.NativeFunctionValue{Value: ReadUserInput})
 	env.DeclareVar("print", values.NativeFunctionValue{Value: PrintStdOut})
 	env.DeclareVar("number", values.NativeFunctionValue{Value: ToNumber})
+	env.DeclareVar("int", values.NativeFunctionValue{Value: ToInteger})
 	env.DeclareVar("string", values.NativeFunctionValue{Value: ToString})
+	env.DeclareVar("bool", values.NativeFunctionValue{Value: ToBool})
 	env.DeclareVar("isNothing", values.NativeFunctionValue{Value: IsNothing})
+	env.DeclareVar("type", values.NativeFunctionValue{Value: Type})
+
+	env.DeclareVar("execCallback", values.NativeFunctionValue{Value: CallbackExec})
 
 	env.DeclareVar("time", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
 		now := time.Now()
@@ -35,16 +40,19 @@ func SetupEnvironment(env *environment.Environment) {
 	}})
 
 	env.DeclareVar("panic", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
-		return values.ErrorValue{Value: "Panic! -> " + args[0].(values.StringValue).Value}
+		return values.ErrorValue{Value: "Panic! -> " + args[0].GetString()}
 	}})
 
-	arguments := []values.RuntimeValue{}
+	arguments := values.ArrayValue{Value: []values.RuntimeValue{}}
 
 	for _, arg := range os.Args {
-		arguments = append(arguments, values.StringValue{Value: arg})
+		arguments.Value = append(arguments.Value, values.StringValue{Value: arg})
 	}
 
-	// env.DeclareVar("getArgs", values.RuntimeValue{Value: GetArguments})
+	env.DeclareVar("getArgs", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
+		return &arguments
+	}})
+
 }
 
 func IsNothing(args []values.RuntimeValue) values.RuntimeValue {
@@ -77,29 +85,33 @@ func ToNumber(args []values.RuntimeValue) values.RuntimeValue {
 		return values.ErrorValue{Value: "Invalid conversion to number with type " + val.GetType().String()}
 	}
 }
+func ToInteger(args []values.RuntimeValue) values.RuntimeValue {
+	val := args[0]
+
+	switch val.GetType() {
+	case values.StringType:
+		number, err := strconv.Atoi(val.(values.StringValue).Value)
+		if err != nil {
+			return values.ErrorValue{Value: err.Error()}
+		}
+		return values.NumberValue{Value: float64(number)}
+	case values.NumberType:
+		return values.NumberValue{Value: float64(int(val.(values.NumberValue).Value))}
+	default:
+		return values.ErrorValue{Value: "Invalid conversion to number with type " + val.GetType().String()}
+	}
+}
 
 func ToString(args []values.RuntimeValue) values.RuntimeValue {
 	value := args[0]
 
-	switch value.GetType() {
-	case values.StringType:
-		return value
-	case values.NumberType:
-		return values.StringValue{Value: "value.String()"}
-	case values.BoolType:
-		return values.StringValue{Value: "value.String()"}
-	case values.ArrayType:
-		str := ""
+	return values.StringValue{Value: value.GetString()}
+}
 
-		for _, item := range value.(*values.ArrayValue).Value {
-			str += item.(values.StringValue).Value
-			str += ", "
-		}
+func ToBool(args []values.RuntimeValue) values.RuntimeValue {
+	value := args[0]
 
-		return values.StringValue{Value: str}
-	default:
-		return values.StringValue{Value: "Invalid conversion to string with type " + value.GetType().String()}
-	}
+	return values.BoolValue{Value: value.GetBool()}
 }
 
 func ReadUserInput(args []values.RuntimeValue) values.RuntimeValue {
@@ -131,6 +143,10 @@ func PrintValues(args []values.RuntimeValue, verboseStrings bool) {
 			} else {
 				fmt.Print(arg.(values.StringValue).Value)
 			}
+		} else if valType == values.ErrorType {
+			fmt.Print("'" + arg.(values.ErrorValue).Value + "'")
+		} else if valType == values.CapturedErrorType {
+			fmt.Print("'" + arg.(values.CapturedErrorValue).Value + "'")
 		} else if valType == values.NumberType {
 			fmt.Print(arg.(values.NumberValue).Value)
 		} else if valType == values.BoolType {
@@ -169,4 +185,25 @@ func GetArguments(args []values.RuntimeValue) values.RuntimeValue {
 	}
 
 	return &vals
+}
+
+func Type(args []values.RuntimeValue) values.RuntimeValue {
+	return values.StringValue{Value: args[0].GetType().String()}
+}
+
+func CallbackExec(args []values.RuntimeValue) values.RuntimeValue {
+
+	fn := args[0].(values.FunctionValue)
+	times := args[1].(values.NumberValue).Value
+
+	for i := 0; i < int(times); i++ {
+		ret := fn.Evaluator.ExecuteCallback(fn, make([]interface{}, 0))
+		err, iserr := ret.(values.ErrorValue)
+		if iserr {
+			return err
+		}
+	}
+
+	return values.NothingValue{}
+
 }

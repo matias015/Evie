@@ -92,7 +92,7 @@ func (p *Parser) ParseImportStmt() ImportNode {
 	node := ImportNode{}
 	node.Line = p.t.Eat().Line
 
-	if p.t.Get().Kind != lexer.TOKEN_IDENTIFIER {
+	if p.t.Get().Kind != lexer.TOKEN_IDENTIFIER && p.t.Get().Kind != lexer.TOKEN_STRING {
 		Stop("Expected module name but found: " + lexer.GetTokenName(p.t.Get().Kind) + " in line " + fmt.Sprint(node.Line))
 	}
 
@@ -751,10 +751,10 @@ func (p *Parser) parseLogicOrExpression() Exp {
 
 	for p.t.Get().Lexeme == "or" {
 		op := p.t.Eat()
-		n := BinaryExpNode{}
+		n := BinaryLogicExpNode{}
 		n.Line = op.Line
 		n.Left = left
-		n.Operator = op.Lexeme
+		n.Operator = OperatorOr
 		n.Right = p.parseLogicAndExpression()
 		left = n
 	}
@@ -767,10 +767,10 @@ func (p *Parser) parseLogicAndExpression() Exp {
 
 	for p.t.Get().Lexeme == "and" {
 		op := p.t.Eat()
-		n := BinaryExpNode{}
+		n := BinaryLogicExpNode{}
 		n.Line = op.Line
 		n.Left = left
-		n.Operator = op.Lexeme
+		n.Operator = OperatorAnd
 		n.Right = p.parseComparisonExp()
 		left = n
 	}
@@ -784,10 +784,20 @@ func (p *Parser) parseComparisonExp() Exp {
 
 	for p.t.Get().Lexeme == "==" || p.t.Get().Lexeme == "!=" || p.t.Get().Lexeme == ">" || p.t.Get().Lexeme == "<" || p.t.Get().Lexeme == ">=" || p.t.Get().Lexeme == "<=" {
 		op := p.t.Eat()
-		n := BinaryExpNode{}
+		n := BinaryComparisonExpNode{}
 		n.Line = op.Line
 		n.Left = left
-		n.Operator = op.Lexeme
+		if op.Lexeme == "==" {
+			n.Operator = OperatorEquals
+		} else if op.Lexeme == ">" {
+			n.Operator = OperatorGreaterThan
+		} else if op.Lexeme == "<" {
+			n.Operator = OperatorLessThan
+		} else if op.Lexeme == ">=" {
+			n.Operator = OperatorGreaterOrEqThan
+		} else if op.Lexeme == "<=" {
+			n.Operator = OperatorLessOrEqThan
+		}
 		n.Right = p.parseAdditiveExp()
 		left = n
 	}
@@ -803,7 +813,11 @@ func (p *Parser) parseAdditiveExp() Exp {
 		n := BinaryExpNode{}
 		n.Left = left
 		n.Line = op.Line
-		n.Operator = op.Lexeme
+		if op.Lexeme == "+" {
+			n.Operator = OperatorAdd
+		} else {
+			n.Operator = OperatorSubtract
+		}
 		n.Right = p.parseObjectInitExp()
 		left = n
 	}
@@ -841,7 +855,12 @@ func (p *Parser) parseMultiplicativeExp() Exp {
 		n := BinaryExpNode{}
 		n.Left = left
 		n.Line = op.Line
-		n.Operator = op.Lexeme
+		if op.Lexeme == "*" {
+			n.Operator = OperatorMultiply
+		} else {
+			n.Operator = OperatorDivide
+		}
+
 		n.Right = p.ParseMemberExp()
 		left = n
 	}

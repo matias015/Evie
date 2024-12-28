@@ -3,6 +3,7 @@ package htppLib
 import (
 	environment "evie/env"
 	"evie/values"
+	"fmt"
 	"net/http"
 )
 
@@ -33,8 +34,6 @@ func AddRoute(args []values.RuntimeValue) values.RuntimeValue {
 	pattern := args[0].GetString()
 	function := args[1]
 	fn := function.(values.FunctionValue)
-	env := fn.Environment.(*environment.Environment)
-	env.DeclareVar("Request", values.StringValue{Value: "Request he"})
 
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 
@@ -47,10 +46,13 @@ func AddRoute(args []values.RuntimeValue) values.RuntimeValue {
 
 		args = append(args, reqObject)
 
-		ret := fn.Evaluator.ExecuteCallback(fn, env, args)
+		fn.Environment.(*environment.Environment).PushScope()
+		ret := fn.Evaluator.ExecuteCallback(fn, args)
+		fn.Environment.(*environment.Environment).ExitScope()
 
 		switch returned := ret.(type) {
 		case values.ErrorValue:
+			fmt.Println(returned.Value)
 			w.Write([]byte("500 Internal Server Error"))
 		case *values.StringValue:
 			w.Write([]byte(returned.GetString()))

@@ -15,6 +15,12 @@ func (a ArrayValue) GetType() ValueType {
 func (a ArrayValue) GetString() string {
 	return "array"
 }
+func (a ArrayValue) GetNumber() float64 {
+	return 0
+}
+func (a ArrayValue) GetBool() bool {
+	return len(a.Value) > 0
+}
 
 func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
 
@@ -104,6 +110,11 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 		},
 		"find": NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
+
+				if len(args) == 0 {
+					return ErrorValue{Value: "Missing argument for find method"}
+				}
+
 				arg := args[0]
 
 				for index, value := range a.Value {
@@ -123,6 +134,76 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 			},
 		},
 	}
+
+	props["remove"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+		if len(args) == 1 {
+			if args[0].GetType() != NumberType {
+				return ErrorValue{Value: "First argument must be a number"}
+			}
+
+			index := int(args[0].(NumberValue).Value)
+
+			if index < 0 {
+				index = len(a.Value) + index
+			}
+
+			if index >= 0 && index < len(a.Value) {
+				a.Value = append(a.Value[:index], a.Value[index+1:]...)
+				return BoolValue{Value: true}
+			}
+
+			return ErrorValue{Value: "Index out of range or array is empty"}
+		} else {
+			a.Value = a.Value[:len(a.Value)-1]
+		}
+		return NothingValue{}
+	}}
+
+	props["removeFirst"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+		if len(a.Value) == 0 {
+			return ErrorValue{Value: "Array is empty"}
+		}
+		a.Value = a.Value[1:]
+		return NothingValue{}
+	}}
+
+	props["addPaddingLeft"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+		if len(args) < 2 {
+			return ErrorValue{Value: "Missing arguments for addPaddingLeft method"}
+		}
+
+		if args[1].GetType() != NumberType {
+			return ErrorValue{Value: "Second argument for addPaddingLeft method must be a number"}
+		}
+
+		char := args[0].GetString()
+		length := int(args[1].(NumberValue).Value)
+		output := make([]RuntimeValue, length)
+		for i := range output {
+			output[i] = StringValue{Value: char}
+		}
+		output = append(output, a.Value...)
+		return &ArrayValue{Value: output}
+	}}
+
+	props["addPaddingRight"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+		if len(args) < 2 {
+			return ErrorValue{Value: "Missing arguments for addPaddingRight method"}
+		}
+
+		if args[1].GetType() != NumberType {
+			return ErrorValue{Value: "Second argument for addPaddingRight method must be a number"}
+		}
+
+		char := args[0].GetString()
+		length := int(args[1].(NumberValue).Value)
+		output := make([]RuntimeValue, length)
+		for i := range output {
+			output[i] = StringValue{Value: char}
+		}
+		output = append(a.Value, output...)
+		return &ArrayValue{Value: output}
+	}}
 
 	return props[name], nil
 }

@@ -16,6 +16,12 @@ type FileValue struct {
 func (s FileValue) GetType() values.ValueType {
 	return s.Type
 }
+func (a FileValue) GetNumber() float64 {
+	return 1
+}
+func (a FileValue) GetBool() bool {
+	return !a.Closed
+}
 
 func (s FileValue) GetString() string {
 	return "File Value"

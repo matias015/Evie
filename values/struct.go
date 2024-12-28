@@ -7,10 +7,15 @@ type StructValue struct {
 	Methods    map[string]RuntimeValue
 }
 
+func (a StructValue) GetNumber() float64 {
+	return 1
+}
 func (a StructValue) GetString() string {
 	return "Struct"
 }
-
+func (a StructValue) GetBool() bool {
+	return true
+}
 func (a StructValue) GetType() ValueType {
 	return StructType
 }

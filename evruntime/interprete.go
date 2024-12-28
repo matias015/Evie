@@ -39,7 +39,8 @@ func (e *Evaluator) Evaluate(env *environment.Environment) *environment.Environm
 func (e Evaluator) EvaluateStmt(n parser.Stmt, env *environment.Environment) values.RuntimeValue {
 	switch n.StmtType() {
 	case parser.NodeExpStmt:
-		return e.EvaluateExpressionStmt(n.(parser.ExpressionStmtNode), env)
+		return e.EvaluateExpression(n.(parser.ExpressionStmtNode).Expression, env)
+		// return e.EvaluateExpressionStmt(n.(parser.ExpressionStmtNode), env)
 	case parser.NodeVarDeclaration:
 		return e.EvaluateVarDeclaration(n.(parser.VarDeclarationNode), env)
 	case parser.NodeIfStatement:
@@ -48,6 +49,8 @@ func (e Evaluator) EvaluateStmt(n parser.Stmt, env *environment.Environment) val
 		return e.EvaluateForInStmt(n.(parser.ForInSatementNode), env)
 	case parser.NodeFunctionDeclaration:
 		return e.EvaluateFunctionDeclarationStmt(n.(parser.FunctionDeclarationNode), env)
+	case parser.NodeReturnStatement:
+		return e.EvaluateReturnNode(n.(parser.ReturnNode), env)
 	case parser.NodeLoopStatement:
 		return e.EvaluateLoopStmt(n.(parser.LoopStmtNode), env)
 	case parser.NodeStructMethodDeclaration:
@@ -56,9 +59,7 @@ func (e Evaluator) EvaluateStmt(n parser.Stmt, env *environment.Environment) val
 		return e.EvaluateBreakNode(n.(parser.BreakNode), env)
 	case parser.NodeContinueStatement:
 		return e.EvaluateContinueNode(n.(parser.ContinueNode), env)
-	case parser.NodeReturnStatement:
-		return e.EvaluateReturnNode(n.(parser.ReturnNode), env)
-	case parser.NodeTryCatch:
+	case parser.NodeTryCatchStatement:
 		return e.EvaluateTryCatchNode(n.(parser.TryCatchNode), env)
 	case parser.NodeStructDeclaration:
 		return e.EvaluatStructDeclarationStmt(n.(parser.StructDeclarationNode), env)
@@ -192,7 +193,7 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 
 		if ret.GetType() == values.ErrorType {
 
-			env.DeclareVar("error", values.CapturedErrorValue{Value: ret.(values.StringValue).Value})
+			env.DeclareVar("error", values.CapturedErrorValue{Value: ret.(values.ErrorValue).Value})
 
 			// CATCH BODY
 			for _, cstmt := range catch {
@@ -374,10 +375,18 @@ func (e Evaluator) EvaluateFunctionDeclarationStmt(node parser.FunctionDeclarati
 	fn.Body = node.Body
 	fn.Parameters = node.Parameters
 	fn.Struct = ""
-	fn.Environment = env
 	fn.Evaluator = e
+	fnenv := environment.NewEnvironment()
+	fn.Environment = fnenv
 
 	_, err := env.DeclareVar(node.Name, fn)
+
+	native.SetupEnvironment(fnenv)
+	for _, scope := range env.Variables {
+		for k, v := range scope {
+			fnenv.Variables[len(fnenv.Variables)-1][k] = v
+		}
+	}
 
 	if err != nil {
 		return e.Panic(err.Error(), node.Line, env)
@@ -505,20 +514,23 @@ func (e Evaluator) EvaluateVarDeclaration(node parser.VarDeclarationNode, env *e
 // Evaluate an expression
 func (e Evaluator) EvaluateExpression(n parser.Exp, env *environment.Environment) values.RuntimeValue {
 
-	if n == nil {
-		return values.NothingValue{}
-	}
-
 	switch n.ExpType() {
 
 	case parser.NodeBinaryExp:
 		return e.EvaluateBinaryExpression(n.(parser.BinaryExpNode), env)
-	case parser.NodeAnonFunctionDeclaration:
-		return e.EvaluateAnonymousFunctionExpression(n.(parser.AnonFunctionDeclarationNode), env)
+	case parser.NodeBinaryComparisonExp:
+		return e.EvaluateBinaryComparisonExpression(n.(parser.BinaryComparisonExpNode), env)
+	case parser.NodeBinaryLogicExp:
+		return e.EvaluateBinaryLogicExpression(n.(parser.BinaryLogicExpNode), env)
 	case parser.NodeTernaryExp:
 		return e.EvaluateTernaryExpression(n.(parser.TernaryExpNode), env)
+	case parser.NodeNumber:
+		parsedNumber, _ := strconv.ParseFloat(n.(parser.NumberNode).Value, 2)
+		return values.NumberValue{Value: parsedNumber}
 	case parser.NodeCallExp:
 		return e.EvaluateCallExpression(n.(parser.CallExpNode), env)
+	case parser.NodeAnonFunctionDeclaration:
+		return e.EvaluateAnonymousFunctionExpression(n.(parser.AnonFunctionDeclarationNode), env)
 	case parser.NodeIdentifier:
 		node := n.(parser.IdentifierNode)
 		lookup, err := env.GetVar(node.Value, node.Line)
@@ -528,9 +540,6 @@ func (e Evaluator) EvaluateExpression(n parser.Exp, env *environment.Environment
 		return lookup
 	case parser.NodeUnaryExp:
 		return e.EvaluateUnaryExpression(n.(parser.UnaryExpNode), env)
-	case parser.NodeNumber:
-		parsedNumber, _ := strconv.ParseFloat(n.(parser.NumberNode).Value, 2)
-		return values.NumberValue{Value: parsedNumber}
 	case parser.NodeString:
 		return values.StringValue{Value: n.(parser.StringNode).Value}
 	case parser.NodeNothing:
@@ -552,6 +561,7 @@ func (e Evaluator) EvaluateExpression(n parser.Exp, env *environment.Environment
 	case parser.NodeDictionaryExp:
 		return e.EvaluateDictionaryExpression(n.(parser.DictionaryExpNode), env)
 	default:
+		// litter.Dump(n)
 		return values.ErrorValue{Value: "Unknown expression type"}
 	}
 
@@ -559,17 +569,24 @@ func (e Evaluator) EvaluateExpression(n parser.Exp, env *environment.Environment
 
 func (e Evaluator) EvaluateAnonymousFunctionExpression(node parser.AnonFunctionDeclarationNode, env *environment.Environment) values.RuntimeValue {
 
-	// fn := values.FunctionValue{}
+	fn := values.FunctionValue{}
 
-	// fn.Body = node.Body
-	// fn.Parameters = node.Parameters
-	// fn.Struct = ""
-	// fn.Environment = env
-	// fn.Evaluator = e
+	fn.Body = node.Body
+	fn.Parameters = node.Parameters
+	fn.Struct = ""
 
-	// return fn
+	fnenv := environment.NewEnvironment()
+	native.SetupEnvironment(fnenv)
+	for _, scope := range env.Variables {
+		for k, v := range scope {
+			fnenv.Variables[len(fnenv.Variables)-1][k] = v
+		}
+	}
 
-	return values.NothingValue{}
+	fn.Environment = fnenv
+	fn.Evaluator = e
+
+	return fn
 }
 
 func (e Evaluator) EvaluateTernaryExpression(node parser.TernaryExpNode, env *environment.Environment) values.RuntimeValue {
@@ -857,7 +874,7 @@ func (e Evaluator) EvaluateArrayExpression(node parser.ArrayExpNode, env *enviro
 
 func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environment.Environment) values.RuntimeValue {
 
-	evaluatedArgs := []values.RuntimeValue{}
+	evaluatedArgs := make([]values.RuntimeValue, 0, len(node.Args))
 
 	for _, arg := range node.Args {
 		value := e.EvaluateExpression(arg, env)
@@ -893,21 +910,19 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 
 	case values.FunctionType:
 
-		// Create new environment
-		env.PushScope()
-		e.AddToCallStack(node.Line, env)
-
 		fn := calle.(values.FunctionValue)
 
-		// Set this
-		if fn.Struct != "" {
-			env.DeclareVar("this", fn.StructObjRef)
-		}
-
 		fnEnv := fn.Environment.(*environment.Environment)
+		// Create new environment
+		fnEnv.PushScope()
+		e.AddToCallStack(node.Line, env)
 
 		for index, arg := range evaluatedArgs {
 			fnEnv.ForceDeclare(fn.Parameters[index], arg)
+		}
+		// Set this
+		if fn.Struct != "" {
+			fnEnv.ForceDeclare("this", fn.StructObjRef)
 		}
 
 		var result values.RuntimeValue
@@ -916,19 +931,19 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 			result = e.EvaluateStmt(stmt, fnEnv)
 
 			if result.GetType() == values.ErrorType {
-				env.ExitScope()
+				fnEnv.ExitScope()
 				e.RemoveToCallStack()
 				return result
 			}
 
 			if result.GetType() == values.ReturnType {
-				env.ExitScope()
+				fnEnv.ExitScope()
 				e.RemoveToCallStack()
 				return result.(values.ReturnValue).Value
 			}
 
 		}
-		env.ExitScope()
+		fnEnv.ExitScope()
 		e.RemoveToCallStack()
 		return values.NothingValue{}
 
@@ -1016,6 +1031,70 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 	left := e.EvaluateExpression(node.Left, env)
 	right := e.EvaluateExpression(node.Right, env)
 
+	type1 := left.GetType()
+	type2 := right.GetType()
+
+	if type1 == values.ErrorType {
+		return left
+	}
+	if type2 == values.ErrorType {
+		return right
+	}
+
+	equalTypes := type1 == type2
+
+	if !equalTypes {
+		return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
+	}
+
+	if node.Operator == parser.OperatorAdd {
+
+		if type1 == values.StringType {
+			return values.StringValue{Value: left.(values.StringValue).Value + right.(values.StringValue).Value}
+		} else if type1 == values.NumberType {
+			val := left.(values.NumberValue)
+			val.Value = val.Value + right.(values.NumberValue).Value
+			return val
+			// return values.NumberValue{Value: left.GetNumber() + right.GetNumber()}
+		} else {
+			return e.Panic("Cant use operator + with type "+type1.String(), node.Line, env)
+		}
+
+	} else if node.Operator == parser.OperatorSubtract {
+
+		if type1 == values.NumberType {
+			val := left.(values.NumberValue)
+			val.Value = val.Value - right.(values.NumberValue).Value
+			return val
+			// return values.NumberValue{Value: left.GetNumber() - right.GetNumber()}
+		} else {
+			return e.Panic("Cant use operator - with type "+type1.String(), node.Line, env)
+		}
+	} else if node.Operator == parser.OperatorMultiply {
+
+		if type1 == values.NumberType {
+			return values.NumberValue{Value: left.(values.NumberValue).Value * right.(values.NumberValue).Value}
+		} else {
+			return e.Panic("Cant use operator * with type "+type1.String(), node.Line, env)
+		}
+	} else if node.Operator == parser.OperatorDivide {
+
+		if type1 == values.NumberType {
+			return values.NumberValue{Value: left.(values.NumberValue).Value / right.(values.NumberValue).Value}
+		} else {
+			return e.Panic("Cant use operator / with type "+type1.String(), node.Line, env)
+		}
+	}
+
+	return values.ErrorValue{Value: "Unknown operator"}
+
+}
+
+func (e Evaluator) EvaluateBinaryLogicExpression(node parser.BinaryLogicExpNode, env *environment.Environment) values.RuntimeValue {
+
+	left := e.EvaluateExpression(node.Left, env)
+	right := e.EvaluateExpression(node.Right, env)
+
 	if left.GetType() == values.ErrorType {
 		return left
 	}
@@ -1023,116 +1102,7 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 		return right
 	}
 
-	op := node.Operator
-
-	type1 := left.GetType()
-	type2 := right.GetType()
-
-	equalTypes := type1 == type2
-
-	if op == "+" {
-		if !equalTypes {
-			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
-		}
-
-		if type1 == values.StringType {
-			return values.StringValue{Value: left.(values.StringValue).Value + right.(values.StringValue).Value}
-		} else if type1 == values.NumberType {
-			return values.NumberValue{Value: left.(values.NumberValue).Value + right.(values.NumberValue).Value}
-		} else {
-			return e.Panic("Cant use operator "+op+" with type "+type1.String(), node.Line, env)
-		}
-
-	} else if op == "-" {
-		if !equalTypes {
-			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
-		}
-
-		if type1 == values.NumberType {
-			return values.NumberValue{Value: left.(values.NumberValue).Value - right.(values.NumberValue).Value}
-		} else {
-			return e.Panic("Cant use operator "+op+" with type "+type1.String(), node.Line, env)
-		}
-	} else if op == "*" {
-		if !equalTypes {
-			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
-		}
-
-		if type1 == values.NumberType {
-			return values.NumberValue{Value: left.(values.NumberValue).Value * right.(values.NumberValue).Value}
-		} else {
-			return e.Panic("Cant use operator "+op+" with type "+type1.String(), node.Line, env)
-		}
-	} else if op == "/" {
-		if !equalTypes {
-			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
-		}
-
-		if type1 == values.NumberType {
-			return values.NumberValue{Value: left.(values.NumberValue).Value / right.(values.NumberValue).Value}
-		} else {
-			return e.Panic("Cant use operator "+op+" with type "+type1.String(), node.Line, env)
-		}
-	} else if op == "==" {
-
-		if !equalTypes {
-			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
-		}
-
-		if type1 == values.StringType {
-			return values.BoolValue{Value: left.(values.StringValue).Value == right.(values.StringValue).Value}
-		} else if type1 == values.NumberType {
-			return values.BoolValue{Value: left.(values.NumberValue).Value == right.(values.NumberValue).Value}
-		} else if type1 == values.BoolType {
-			return values.BoolValue{Value: left.(values.BoolValue).Value == right.(values.BoolValue).Value}
-		} else {
-			return e.Panic("Cant use operator "+op+" with type "+type1.String(), node.Line, env)
-		}
-	} else if op == ">" {
-
-		if !equalTypes {
-			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
-		}
-
-		if type1 == values.NumberType {
-			return values.BoolValue{Value: left.(values.NumberValue).Value > right.(values.NumberValue).Value}
-		} else {
-			return e.Panic("Operator "+op+" only can be used with numbers, not with type "+type1.String(), node.Line, env)
-		}
-	} else if op == "<" {
-
-		if !equalTypes {
-			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
-		}
-
-		if type1 == values.NumberType {
-			return values.BoolValue{Value: left.(values.NumberValue).Value < right.(values.NumberValue).Value}
-		} else {
-			return e.Panic("Operator "+op+" only can be used with numbers, not with type "+type1.String(), node.Line, env)
-		}
-	} else if op == "<=" {
-
-		if !equalTypes {
-			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
-		}
-
-		if type1 == values.NumberType {
-			return values.BoolValue{Value: left.(values.NumberValue).Value <= right.(values.NumberValue).Value}
-		} else {
-			return e.Panic("Operator "+op+" only can be used with numbers, not with type "+type1.String(), node.Line, env)
-		}
-	} else if op == ">=" {
-
-		if !equalTypes {
-			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
-		}
-
-		if type1 == values.NumberType {
-			return values.BoolValue{Value: left.(values.NumberValue).Value >= right.(values.NumberValue).Value}
-		} else {
-			return e.Panic("Operator "+op+" only can be used with numbers, not with type "+type1.String(), node.Line, env)
-		}
-	} else if op == "and" {
+	if node.Operator == parser.OperatorAnd {
 
 		leftValue, err := e.EvaluateImplicitBoolConversion(left)
 
@@ -1148,7 +1118,7 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 
 		return values.BoolValue{Value: leftValue && rightValue}
 
-	} else if op == "or" {
+	} else if node.Operator == parser.OperatorOr {
 
 		leftValue, err := e.EvaluateImplicitBoolConversion(left)
 
@@ -1166,7 +1136,88 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 
 	}
 
-	return values.ErrorValue{Value: "Unknown operator '" + op + "'"}
+	return values.ErrorValue{Value: "Unknown operator"}
+
+}
+func (e Evaluator) EvaluateBinaryComparisonExpression(node parser.BinaryComparisonExpNode, env *environment.Environment) values.RuntimeValue {
+
+	left := e.EvaluateExpression(node.Left, env)
+	right := e.EvaluateExpression(node.Right, env)
+
+	type1 := left.GetType()
+	type2 := right.GetType()
+
+	if type1 == values.ErrorType {
+		return left
+	}
+	if type2 == values.ErrorType {
+		return right
+	}
+
+	equalTypes := type1 == type2
+
+	if node.Operator == parser.OperatorEquals {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
+		}
+
+		if type1 == values.StringType {
+			return values.BoolValue{Value: left.(values.StringValue).Value == right.(values.StringValue).Value}
+		} else if type1 == values.NumberType {
+			return values.BoolValue{Value: left.(values.NumberValue).Value == right.(values.NumberValue).Value}
+		} else if type1 == values.BoolType {
+			return values.BoolValue{Value: left.(values.BoolValue).Value == right.(values.BoolValue).Value}
+		} else {
+			return e.Panic("Cant use operator == with type "+type1.String(), node.Line, env)
+		}
+	} else if node.Operator == parser.OperatorGreaterThan {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
+		}
+
+		if type1 == values.NumberType {
+			return values.BoolValue{Value: left.(values.NumberValue).Value > right.(values.NumberValue).Value}
+		} else {
+			return e.Panic("Operator > only can be used with numbers, not with type "+type1.String(), node.Line, env)
+		}
+	} else if node.Operator == parser.OperatorLessThan {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
+		}
+
+		if type1 == values.NumberType {
+			return values.BoolValue{Value: left.(values.NumberValue).Value < right.(values.NumberValue).Value}
+		} else {
+			return e.Panic("Operator < only can be used with numbers, not with type "+type1.String(), node.Line, env)
+		}
+	} else if node.Operator == parser.OperatorLessOrEqThan {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
+		}
+
+		if type1 == values.NumberType {
+			return values.BoolValue{Value: left.(values.NumberValue).Value <= right.(values.NumberValue).Value}
+		} else {
+			return e.Panic("Operator <= only can be used with numbers, not with type "+type1.String(), node.Line, env)
+		}
+	} else if node.Operator == parser.OperatorGreaterOrEqThan {
+
+		if !equalTypes {
+			return e.Panic("Type mismatch: "+type1.String()+" and "+type2.String(), node.Line, env)
+		}
+
+		if type1 == values.NumberType {
+			return values.BoolValue{Value: left.(values.NumberValue).Value >= right.(values.NumberValue).Value}
+		} else {
+			return e.Panic("Operator >= only can be used with numbers, not with type "+type1.String(), node.Line, env)
+		}
+	}
+
+	return values.ErrorValue{Value: "Unknown operator"}
 
 }
 
@@ -1203,50 +1254,47 @@ func (e Evaluator) EvaluateImplicitBoolConversion(value values.RuntimeValue) (bo
 	}
 }
 
-func (e Evaluator) ExecuteCallback(fn interface{}, env interface{}, args []interface{}) interface{} {
+func (e Evaluator) ExecuteCallback(fn interface{}, args []interface{}) interface{} {
 
-	// fnValue := fn.(values.FunctionValue)
+	fnValue := fn.(values.FunctionValue)
+	fnEnv := fnValue.Environment.(*environment.Environment)
 
-	// // parentEnvironment := env.(*environment.Environment)
+	fnEnv.PushScope()
+	defer fnEnv.ExitScope()
 
-	// childEnvironment := environment.NewEnvironment()
+	for i, paramName := range fnValue.Parameters {
+		if i+1 < len(args) {
+			break
+		}
 
-	// for i, paramName := range fnValue.Parameters {
-	// 	if i+1 < len(args) {
-	// 		break
-	// 	}
+		switch val := args[i].(type) {
+		case values.ObjectValue:
+			fnEnv.Variables[len(fnEnv.Variables)-1][paramName] = val
+		case values.NumberValue:
+			fnEnv.Variables[len(fnEnv.Variables)-1][paramName] = val
+		case values.StringValue:
+			fnEnv.Variables[len(fnEnv.Variables)-1][paramName] = val
+		case values.BoolValue:
+			fnEnv.Variables[len(fnEnv.Variables)-1][paramName] = val
+		case values.ArrayValue:
+			fnEnv.Variables[len(fnEnv.Variables)-1][paramName] = &val
+		}
+	}
 
-	// 	switch val := args[i].(type) {
-	// 	case values.ObjectValue:
-	// 		childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
-	// 	case values.NumberValue:
-	// 		childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
-	// 	case values.StringValue:
-	// 		childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
-	// 	case values.BooleanValue:
-	// 		childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
-	// 	case values.ArrayValue:
-	// 		childEnvironment.Variables[len(childEnvironment.Variables)-1][paramName] = values.RuntimeValue(val)
-	// 	}
-	// }
+	var result values.RuntimeValue
 
-	// var result values.RuntimeValue
+	for _, stmt := range fnValue.Body {
+		result = e.EvaluateStmt(stmt, fnEnv)
 
-	// for _, stmt := range fnValue.Body {
-	// 	result = e.EvaluateStmt(stmt, childEnvironment)
+		if result != nil && result.GetType() == values.ErrorType {
+			return result
+		}
 
-	// 	if result != nil && result.GetType() == values.ErrorType {
-	// 		return result
-	// 	}
+		if result.GetType() == values.ReturnType {
+			return result.(values.ReturnValue).Value
+		}
 
-	// 	signal, isSignal := result.(values.SignalValue)
-
-	// 	if isSignal && signal.GetType() == values.ReturnType {
-
-	// 		return signal.Value
-	// 	}
-
-	// }
+	}
 	return nil
 }
 

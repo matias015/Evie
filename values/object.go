@@ -5,10 +5,15 @@ type ObjectValue struct {
 	Value  map[string]RuntimeValue
 }
 
+func (a ObjectValue) GetNumber() float64 {
+	return 1
+}
 func (a ObjectValue) GetString() string {
 	return "Object"
 }
-
+func (a ObjectValue) GetBool() bool {
+	return true
+}
 func (a ObjectValue) GetType() ValueType {
 	return ObjectType
 }

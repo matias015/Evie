@@ -17,7 +17,7 @@ fn fibonacciTer(n){
 }
 
 
-var u = 33
+var u = 31
 var r = 0
 var i = 0
 loop{

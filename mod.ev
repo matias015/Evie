@@ -1,10 +1,10 @@
-var MyVar = 22
 
-
-fn addSecondLine(f){
-	callFn(f)
+struct Person{
+	name
+	age
 }
 
-fn callFn(f){
-	f.appendLine("Line 2")
+Person -> hello(){
+	this.name
 }
+

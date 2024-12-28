@@ -38,6 +38,7 @@ func (e *Environment) ExitScope() {
 	for k := range e.Variables[len(e.Variables)-1] {
 		delete(e.Variables[len(e.Variables)-1], k)
 	}
+
 	mapPool.Put(e.Variables[len(e.Variables)-1])
 	e.Variables = e.Variables[:len(e.Variables)-1]
 }

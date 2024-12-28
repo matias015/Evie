@@ -1,6 +1,7 @@
 package parser
 
 type NodeType uint8
+type OperatorType uint8
 
 // INTERFACES
 type Stmt interface {
@@ -10,6 +11,22 @@ type Stmt interface {
 type Exp interface {
 	ExpType() NodeType
 }
+
+const (
+	OperatorAdd OperatorType = iota
+	OperatorSubtract
+	OperatorMultiply
+	OperatorDivide
+	OperatorModulo
+	OperatorAnd
+	OperatorOr
+	OperatorNot
+	OperatorEquals
+	OperatorGreaterThan
+	OperatorLessThan
+	OperatorGreaterOrEqThan
+	OperatorLessOrEqThan
+)
 
 const (
 	NodeExpStmt NodeType = iota
@@ -45,6 +62,8 @@ const (
 	NodeStructMethodDeclaration
 	NodeTryCatchStatement
 	NodeImportStatement
+	NodeBinaryComparisonExp
+	NodeBinaryLogicExp
 )
 
 // EXPRESIONES
@@ -99,12 +118,30 @@ func (n AssignmentNode) ExpType() NodeType { return NodeAssignment }
 
 type BinaryExpNode struct {
 	Left     Exp
-	Operator string
+	Operator OperatorType
 	Right    Exp
 	Line     int
 }
 
 func (n BinaryExpNode) ExpType() NodeType { return NodeBinaryExp }
+
+type BinaryComparisonExpNode struct {
+	Left     Exp
+	Operator OperatorType
+	Right    Exp
+	Line     int
+}
+
+func (n BinaryComparisonExpNode) ExpType() NodeType { return NodeBinaryComparisonExp }
+
+type BinaryLogicExpNode struct {
+	Left     Exp
+	Operator OperatorType
+	Right    Exp
+	Line     int
+}
+
+func (n BinaryLogicExpNode) ExpType() NodeType { return NodeBinaryLogicExp }
 
 type UnaryExpNode struct {
 	Operator string
@@ -218,7 +255,7 @@ type AnonFunctionDeclarationNode struct {
 	Line       int
 }
 
-func (n AnonFunctionDeclarationNode) ExpType() NodeType { return NodeFunctionDeclaration }
+func (n AnonFunctionDeclarationNode) ExpType() NodeType { return NodeAnonFunctionDeclaration }
 
 type StructDeclarationNode struct {
 	Name       string

@@ -50,4 +50,6 @@ type RuntimeValue interface {
 	GetType() ValueType
 	GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 	GetString() string
+	GetNumber() float64
+	GetBool() bool
 }

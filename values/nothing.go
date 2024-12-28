@@ -5,10 +5,15 @@ import "fmt"
 type NothingValue struct {
 }
 
+func (a NothingValue) GetNumber() float64 {
+	return 0
+}
 func (a NothingValue) GetString() string {
 	return "Nothing"
 }
-
+func (a NothingValue) GetBool() bool {
+	return false
+}
 func (a NothingValue) GetType() ValueType {
 	return NothingType
 }

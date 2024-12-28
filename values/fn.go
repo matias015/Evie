@@ -15,6 +15,13 @@ type FunctionValue struct {
 	Evaluator    core.Evaluator
 }
 
+func (a FunctionValue) GetNumber() float64 {
+	return 1
+}
+func (a FunctionValue) GetBool() bool {
+	return true
+}
+
 func (a FunctionValue) GetString() string {
 	return "Function"
 }

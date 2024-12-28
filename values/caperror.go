@@ -6,6 +6,12 @@ type CapturedErrorValue struct {
 	Value string
 }
 
+func (a CapturedErrorValue) GetBool() bool {
+	return false
+}
+func (a CapturedErrorValue) GetNumber() float64 {
+	return 0
+}
 func (a CapturedErrorValue) GetString() string {
 	return fmt.Sprintf("%v", a.Value)
 }

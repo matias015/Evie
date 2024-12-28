@@ -10,6 +10,13 @@ func (a NamespaceValue) GetString() string {
 	return "Namespace"
 }
 
+func (a NamespaceValue) GetNumber() float64 {
+	return 1
+}
+
+func (a NamespaceValue) GetBool() bool {
+	return true
+}
 func (a NamespaceValue) GetType() ValueType {
 	return NamespaceType
 }

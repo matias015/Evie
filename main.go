@@ -40,7 +40,6 @@ func main() {
 
 	// start := time.Now()
 	intr := evruntime.Evaluator{Nodes: ast}
-
 	intr.Evaluate(env)
 	// evalTime := time.Since(start).Microseconds()
 
