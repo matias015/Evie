@@ -1,23 +1,5 @@
-
-
-var init = time()
-
-
-fn test(a,b,c){
-	var val = a + b - c + 1 - 10
-	return val + 2 - 3
+var myfunc = fn(a,b){
+	return a+b
 }
 
-var i = 0
-
-loop{
-	i = i + 1
-	if i>1000000{
-		break
-	}
-	test(i,i+1,i+2)
-}
-
-var end = time()
-
-print("Total time: ", (end-init)/1000, " seg")
+print(myfunc(1,3))

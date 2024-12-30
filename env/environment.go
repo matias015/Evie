@@ -22,35 +22,37 @@ type Environment struct {
 	// Variables is a map of variable names to their values
 	Variables []map[string]values.RuntimeValue
 
-	// Imported Files
-	ImportMap map[string][]string
+	//
+	ImportChain map[string]bool
 
 	// Module Name
 	ModuleName string
 }
 
 func (e *Environment) PushScope() {
-	myMap := mapPool.Get().(map[string]values.RuntimeValue)
-	e.Variables = append(e.Variables, myMap)
+	val := mapPool.Get().(map[string]values.RuntimeValue)
+	e.Variables = append(e.Variables, val)
 }
 
 func (e *Environment) ExitScope() {
-	for k := range e.Variables[len(e.Variables)-1] {
-		delete(e.Variables[len(e.Variables)-1], k)
+	len := len(e.Variables) - 1
+	last := e.Variables[len]
+	for k := range last {
+		delete(last, k)
 	}
 
-	mapPool.Put(e.Variables[len(e.Variables)-1])
-	e.Variables = e.Variables[:len(e.Variables)-1]
+	mapPool.Put(last)
+	e.Variables = e.Variables[:len]
 }
 
 // Declares a variable
-func (e *Environment) DeclareVar(name string, value values.RuntimeValue) (bool, error) {
+func (e *Environment) DeclareVar(name string, value values.RuntimeValue) error {
 	currentScope := e.Variables[len(e.Variables)-1]
 	if _, exists := currentScope[name]; exists {
-		return false, fmt.Errorf("variable '%s' already declared", name)
+		return fmt.Errorf("variable '%s' already declared", name)
 	}
 	currentScope[name] = value
-	return true, nil
+	return nil
 }
 
 // Returns the value of a variable
@@ -64,9 +66,8 @@ func (e *Environment) GetVar(name string, line int) (values.RuntimeValue, error)
 	return values.NothingValue{}, fmt.Errorf("variable '%s' not found", name)
 }
 
-func (e *Environment) ForceDeclare(name string, value values.RuntimeValue) (bool, error) {
+func (e *Environment) ForceDeclare(name string, value values.RuntimeValue) {
 	e.Variables[len(e.Variables)-1][name] = value
-	return true, nil
 }
 
 // Assigns a value to a variable

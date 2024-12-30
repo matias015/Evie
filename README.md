@@ -3,12 +3,10 @@
 Evie is a personal project of a simple interpreted language with features like structures, dictionaries, modules, and more.
 
 ## Variables
-
+You can not redeclare variables or access to non declarated ones
 ```
 var x = 20
-x = "Now x is a text!"
-y = 3      // PANIC: "y" does not exists
-var x = 2  // PANIC: can not redeclare var "x"
+x = "Now x is a text"
 ```
 
 ## Functions
@@ -18,47 +16,43 @@ fn add(n1, n2){
 }
 
 var result = add(2,4)
-print(result) // 6
+print(result)
 ```
 
 ## Structures
+Like variables, you can not set, modify or access to a non defined property
 ```
 struct Person{
-  name,
+  name
   age
 }
 
 var person1 = Person{}
 person1.name = "John"
 person1.age = 25
-person1.oops = "oops" // PANIC: person struct does not have oops property
 
 var person2 = Person{
-  name: "Pedro",
-  age: 24,
-  realProp: "he" // PANIC: person struct does not have realProp property
+  name: "Pedro"
+  age: 24
 }
-
 ```
 
 ## Structure methods
 ```
 struct Person{
-  name,
+  name
   age
 }
 
 Person -> sayHello(){
-  var text = "Hi! im " + this.name
-  print(text)
+  var text = "Hi, my name is: "
+  print(text + this.name)
 }
 
 var person1 = Person{}
 person1.name = "John"
 person1.sayHello()
 ```
-
-Evie does not have something like static method!
 
 ## Dictionaries
 Dictionaries are similar to python dictionaries and javascript objects.
@@ -70,11 +64,6 @@ var dict = {
 }
 
 dict["a"] = 3
-dict["c"] = 5 // PANIC: dict does not have key 'c'
-
-dict.add("c", 4)
-dict.remove("c")
-dict.has("a")
 
 print(dict["a"])
 
@@ -85,13 +74,7 @@ Arrays in Evie are similar to others languages like Python or JavaScript
 var arr = [1, 2, "string", [3,4,5]]
 
 arr[1] = 3
-arr[10] = 5 // PANIC: Out Of Bounds!
-
-arr.add(5)       // [1, 2, "string", [3,4,5], 5]
-arr.addFirst(-2) // [-2, 1, 2, "string", [3,4,5], 5]
-arr.has(2)       // true
-arr.len()        // 6
-arr.find("string") // 3
+arr[10] = 5 // Out Of Bounds!!
 
 print(arr[2])
 
@@ -140,29 +123,15 @@ loop {
   
   print("this will loop forever until i equals to 100")
 }
-```
 
-Unlike many others languages, you CAN NOT redeclare variables inside loops
-```
-loop {
-  var i = 0   // This will panic after the first iteration because 'i' will be redeclared
-}
+// PANIC: empty loops
 
-var i = 0
-
-loop {
-  i = 0   // This will loop forever, but will not give any errors
-}
-
-```
-Also empty loops generates a panic
-```
 for item in items{
 
-}   // PANIC: empty loop
+}   
 
-loop {} // PANIC: empty loop
+loop {}
 
 ```
 
-Documentation still in development
+Features and Documentation still in development

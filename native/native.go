@@ -26,8 +26,6 @@ func SetupEnvironment(env *environment.Environment) {
 	env.DeclareVar("isNothing", values.NativeFunctionValue{Value: IsNothing})
 	env.DeclareVar("type", values.NativeFunctionValue{Value: Type})
 
-	env.DeclareVar("execCallback", values.NativeFunctionValue{Value: CallbackExec})
-
 	env.DeclareVar("time", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
 		now := time.Now()
 		milliseconds := now.UnixMilli()
@@ -116,7 +114,7 @@ func ToBool(args []values.RuntimeValue) values.RuntimeValue {
 
 func ReadUserInput(args []values.RuntimeValue) values.RuntimeValue {
 	scanner := bufio.NewScanner(os.Stdin)
-	if !scanner.Scan() { // Lee una línea completa
+	if !scanner.Scan() {
 		return values.StringValue{Value: ""}
 	}
 	line := scanner.Text()
@@ -174,36 +172,6 @@ func PrintStdOut(args []values.RuntimeValue) values.RuntimeValue {
 	return values.BoolValue{Value: true}
 }
 
-func GetArguments(args []values.RuntimeValue) values.RuntimeValue {
-
-	vals := values.ArrayValue{Value: []values.RuntimeValue{}}
-
-	sysargs := os.Args
-
-	for _, arg := range sysargs {
-		vals.Value = append(vals.Value, values.StringValue{Value: arg})
-	}
-
-	return &vals
-}
-
 func Type(args []values.RuntimeValue) values.RuntimeValue {
 	return values.StringValue{Value: args[0].GetType().String()}
-}
-
-func CallbackExec(args []values.RuntimeValue) values.RuntimeValue {
-
-	fn := args[0].(values.FunctionValue)
-	times := args[1].(values.NumberValue).Value
-
-	for i := 0; i < int(times); i++ {
-		ret := fn.Evaluator.ExecuteCallback(fn, make([]interface{}, 0))
-		err, iserr := ret.(values.ErrorValue)
-		if iserr {
-			return err
-		}
-	}
-
-	return values.NothingValue{}
-
 }

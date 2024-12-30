@@ -70,6 +70,11 @@ func ListenAndServe(args []values.RuntimeValue) values.RuntimeValue {
 	}
 
 	port := args[0].GetString()
-	http.ListenAndServe(":"+port, nil)
+	err := http.ListenAndServe(":"+port, nil)
+
+	if err != nil {
+		return values.ErrorValue{Value: err.Error()}
+	}
+
 	return values.BoolValue{Value: true}
 }

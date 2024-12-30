@@ -1,34 +1,35 @@
 
 var init = time()
 
-fn fibonacci(n){
-
-    if n == 0{
-        return 0
-	}
-    if n == 1{
-        return 1
-	}
-    return fibonacci(n-1) + fibonacci(n-2)
-}
-
-fn fibonacciTer(n){
-    return (n == 0? 0 : (n == 1? 1:fibonacciTer(n-1) + fibonacciTer(n-2)))
-}
-
-
-var u = 31
-var r = 0
-var i = 0
-loop{
-    i = i+1
-    if i >= u{
-        break
+fn fib(n) {
+    if n <= 1 { 
+        return n    
     }
-    
-    r = r+ fibonacci(i)
+    return fib(n - 1) + fib(n - 2)
 }
-print(r)
+
+
+// 30 -> 1.44s
+// 31 -> 2.31s
+// 32 -> 3.76s
+// 33 -> 6.10s
+// 34 -> 9.94s
+// 35 -> 16.1s
+
+// 36 -> 26.1s
+// 37 -> 42.3s
+// 38 -> 68.5s
+// 39 -> 111s
+// 40 -> 180s
+// 41 -> 291s
+// 42 -> 471s
+// 43 -> 763s
+// 44 -> 1235s
+// 45 -> 1999s
+// 46 -> 3234s
+// 47 -> 5234s
+
+print(fib(35))
 
 
 var end = time()

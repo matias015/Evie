@@ -86,30 +86,8 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 	} else {
 		// Is a custom file
 
-		/* Which modules were imported by the module which is being imported
-		.	example:
-		.
-		.		File: main.ev
-		.			import utils
-		.
-		. 	Here the main module or file try to import the utils module!
-		.
-		.		file: utils.ev
-		.			import main
-		.
-		.	Here utils wants to imports main, so before we do that, we check in the import map
-		.	which modules were imported by main, if utils module is there, the utils module will say circular
-		.
-		.
-		*/
-		// TODO: Detect circular imports in import chain
-		// ex: a imports b, b imports c, and c imports a
-		importedByModule, _ := env.ImportMap[node.Path]
-
-		for _, module := range importedByModule {
-			if module == env.ModuleName {
-				return e.Panic("Circular import with module: "+node.Path, line, env)
-			}
+		if _, ok := env.ImportChain[node.Path]; ok {
+			return e.Panic("Circular import with module: "+node.Path, line, env)
 		}
 
 		// Do not add .ev to modules ;)
@@ -118,15 +96,16 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 		// Read file, parse and evaluate
 		var source string = utils.ReadFile(path)
 
-		env.ImportMap[env.ModuleName] = append(env.ImportMap[env.ModuleName], node.Path)
-
 		tokens := lexer.Tokenize(source)
 		ast := parser.NewParser(tokens).GetAST()
 
 		// Create new environment for the module with the parent environment
 		envForModule := environment.NewEnvironment()
-		envForModule.ImportMap = env.ImportMap
 		native.SetupEnvironment(envForModule)
+
+		envForModule.Variables = make([]map[string]values.RuntimeValue, 0)
+		envForModule.ImportChain = env.ImportChain
+		envForModule.ImportChain[env.ModuleName] = true
 		envForModule.ModuleName = node.Path
 		envForModule.PushScope()
 
@@ -146,9 +125,9 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 func (e Evaluator) EvaluateLoopStmt(node parser.LoopStmtNode, env *environment.Environment) values.RuntimeValue {
 
 	// Creating new environment
-	env.PushScope()
 
 	for {
+		env.PushScope()
 
 		// Loop through body
 		for _, stmt := range node.Body {
@@ -164,8 +143,8 @@ func (e Evaluator) EvaluateLoopStmt(node parser.LoopStmtNode, env *environment.E
 			} else if ret.GetType() == values.ContinueType {
 				break
 			}
-
 		}
+		env.ExitScope()
 	}
 }
 
@@ -358,7 +337,7 @@ func (e Evaluator) EvaluatStructDeclarationStmt(node parser.StructDeclarationNod
 	rtValue.Properties = node.Properties
 	rtValue.Methods = make(map[string]values.RuntimeValue)
 
-	_, err := env.DeclareVar(node.Name, rtValue)
+	err := env.DeclareVar(node.Name, rtValue)
 
 	if err != nil {
 		return e.Panic(err.Error(), node.Line, env)
@@ -379,7 +358,7 @@ func (e Evaluator) EvaluateFunctionDeclarationStmt(node parser.FunctionDeclarati
 	fnenv := environment.NewEnvironment()
 	fn.Environment = fnenv
 
-	_, err := env.DeclareVar(node.Name, fn)
+	err := env.DeclareVar(node.Name, fn)
 
 	native.SetupEnvironment(fnenv)
 	for _, scope := range env.Variables {
@@ -464,7 +443,7 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 			}
 		}
 
-		if matched == false {
+		if node.ElseBody != nil && matched == false {
 			env.PushScope()
 			for _, stmt := range node.ElseBody {
 
@@ -502,7 +481,7 @@ func (e Evaluator) EvaluateVarDeclaration(node parser.VarDeclarationNode, env *e
 		return parsed
 	}
 
-	_, err := env.DeclareVar(identifier.Value, parsed)
+	err := env.DeclareVar(identifier.Value, parsed)
 
 	if err != nil {
 		return e.Panic(err.Error(), node.Line, env)
@@ -893,9 +872,6 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 
 	switch calle.GetType() {
 
-	case values.ErrorType:
-
-		return calle
 	case values.NativeFunctionType:
 
 		val := calle.(values.NativeFunctionValue).Value(evaluatedArgs)
@@ -1080,6 +1056,9 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 	} else if node.Operator == parser.OperatorDivide {
 
 		if type1 == values.NumberType {
+			if right.(values.NumberValue).Value == 0.0 {
+				return e.Panic("Division by zero", node.Line, env)
+			}
 			return values.NumberValue{Value: left.(values.NumberValue).Value / right.(values.NumberValue).Value}
 		} else {
 			return e.Panic("Cant use operator / with type "+type1.String(), node.Line, env)

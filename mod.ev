@@ -1,10 +1,15 @@
+import test
+import mod2
 
 struct Person{
 	name
 	age
 }
 
+var res = "gew"
+
 Person -> hello(){
-	this.name
+	print(res)
 }
+
 
