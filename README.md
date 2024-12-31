@@ -134,4 +134,19 @@ loop {}
 
 ```
 
+## Built In Methods
+```
+input() // Captures and returns the user console input
+print(...args) // Complex elements may not be printed correctly right now
+number(arg)    // Parse the given value to a number
+int(arg)       // Parse the given value to a number but also an integer
+string(arg)    // Parse the given value to a string
+bool(arg)      // Parse the given value to a bool
+isNothing(...args) // Check if some of the given values are Nothing (equivalent to Null, None, Nill, etc)
+type(arg)      // Return the type of the given value
+time()         // The number of milliseconds since January 1, 1970
+panic(msg)     // Throws an error with the given message
+getArgs()      // Returns the execution arguments
+```
+
 Features and Documentation still in development

@@ -805,7 +805,7 @@ func (e Evaluator) EvaluateIndexAccessExpression(node parser.IndexAccessExpNode,
 	// El indice puede ser numeric si es un array, o un string si se trata de un diccionario
 	// En ambos casos lo trataremos como un string y si es necesario se convertira a int
 
-	var i string = index.(values.StringValue).Value
+	var i string = index.GetString()
 
 	switch identifier.GetType() {
 	case values.ArrayType:
@@ -983,14 +983,58 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 	}
 
 	if left.ExpType() == parser.NodeIndexAccessExp {
-		chain := e.ResolveIndexAccessChain(left.(parser.IndexAccessExpNode), env)
-		_, err := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
+		expNode := left.(parser.IndexAccessExpNode)
+		val := e.EvaluateExpression(expNode.Left, env)
 
-		if err != nil {
-			return e.Panic(err.Error(), node.Line, env)
+		if val.GetType() == values.ErrorType {
+			return val
 		}
 
-		return right
+		if val.GetType() != values.ArrayType {
+			return e.Panic("Invalid array assignment", node.Line, env)
+		}
+
+		index := e.EvaluateExpression(expNode.Index, env)
+
+		if index.GetType() == values.ErrorType {
+			return index
+		}
+
+		if index.GetType() != values.NumberType {
+			return e.Panic("Invalid array index", node.Line, env)
+		}
+
+		val.(*values.ArrayValue).Value[int(index.GetNumber())] = right
+		// chain := e.ResolveIndexAccessChain(left.(parser.IndexAccessExpNode), env)
+		// _, err := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
+
+		// if err != nil {
+		// 	return e.Panic(err.Error(), node.Line, env)
+		// }
+
+		// return right
+	} else if left.ExpType() == parser.NodeMemberExp {
+		expNode := left.(parser.MemberExpNode)
+		val := e.EvaluateExpression(expNode.Left, env)
+
+		if val.GetType() == values.ErrorType {
+			return val
+		}
+
+		if val.GetType() != values.ObjectType {
+			return e.Panic("Invalid object assignment", node.Line, env)
+		}
+
+		val.(*values.ObjectValue).Value[expNode.Member.Value] = right
+
+		// chain := e.ResolveIndexAccessChain(left.(parser.IndexAccessExpNode), env)
+		// _, err := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
+
+		// if err != nil {
+		// 	return e.Panic(err.Error(), node.Line, env)
+		// }
+
+		// return right
 	} else {
 		_, err := env.SetVar(left, right)
 

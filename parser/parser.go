@@ -867,22 +867,43 @@ func (p *Parser) parseMultiplicativeExp() Exp {
 
 	return left
 }
+
 func (p *Parser) ParseMemberExp() Exp {
 
 	left := p.ParseCallMemberExp()
 
-	for p.t.Get().Lexeme == "." {
+	for p.t.Get().Lexeme == "." || p.t.Get().Lexeme == "[" {
 
-		line := p.t.Eat().Line
+		if p.t.Get().Lexeme == "." {
+			line := p.t.Eat().Line
 
-		n := MemberExpNode{}
-		n.Line = line
-		n.Left = left
-		n.Member = IdentifierNode{Value: p.t.Eat().Lexeme}
-		left = n
+			n := MemberExpNode{}
+			n.Line = line
+			n.Left = left
+			n.Member = IdentifierNode{Value: p.t.Eat().Lexeme}
+			left = n
 
-		if p.t.Get().Lexeme == "(" {
-			left = p.ParseCallExpr(left)
+			if p.t.Get().Lexeme == "(" {
+				left = p.ParseCallExpr(left)
+			}
+		} else {
+			for p.t.Get().Lexeme == "[" {
+				line := p.t.Eat().Line
+				index := p.ParseExp()
+
+				n := IndexAccessExpNode{}
+				n.Line = line
+				n.Left = left
+				n.Index = index
+
+				left = n
+
+				if p.t.Get().Lexeme == "]" {
+					p.t.Eat()
+				} else {
+					Stop("Expected ']' at line " + fmt.Sprint(line))
+				}
+			}
 		}
 	}
 
@@ -891,7 +912,7 @@ func (p *Parser) ParseMemberExp() Exp {
 }
 
 func (p *Parser) ParseCallMemberExp() Exp {
-	member := p.ParseIndexAccessExp()
+	member := p.parseUnaryExp()
 
 	if p.t.Get().Lexeme == "(" {
 		return p.ParseCallExpr(member)
@@ -900,7 +921,7 @@ func (p *Parser) ParseCallMemberExp() Exp {
 	return member
 }
 
-func (p *Parser) ParseIndexAccessExp() Exp {
+func (p *Parser) ParseIndexAccessExp2() Exp {
 
 	left := p.parseUnaryExp()
 
@@ -1044,7 +1065,7 @@ func (p *Parser) ParseCallExpr(member Exp) Exp {
 func (p *Parser) ParseArgs() []Exp {
 
 	if p.t.Get().Kind != lexer.TOKEN_LPAR {
-		Stop("Expected '(' after function arguments in line " + fmt.Sprint(p.t.Get().Line))
+		Stop("Expected '(' after function arguments but found " + p.t.Get().Lexeme + " in line " + fmt.Sprint(p.t.Get().Line))
 	}
 
 	p.t.Eat()
@@ -1067,7 +1088,7 @@ func (p *Parser) ParseArgs() []Exp {
 func (p *Parser) ParseArgumentsList() []Exp {
 	var args []Exp
 
-	p.context.AvoidStructInit = true
+	// p.context.AvoidStructInit = true
 
 	args = append(args, p.ParseExp())
 
@@ -1077,9 +1098,9 @@ func (p *Parser) ParseArgumentsList() []Exp {
 	}
 
 	if p.t.Get().Lexeme != ")" {
-		Stop("Expected ')' after function arguments in line " + fmt.Sprint(p.t.Get().Line))
+		Stop("Expected ')' after function arguments but found " + p.t.Get().Lexeme + " in line " + fmt.Sprint(p.t.Get().Line))
 	}
-	p.context.AvoidStructInit = false
+	// p.context.AvoidStructInit = false
 	p.t.Eat()
 
 	return args
