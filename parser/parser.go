@@ -888,7 +888,32 @@ func (p *Parser) ParseMemberExp() Exp {
 			}
 		} else {
 			for p.t.Get().Lexeme == "[" {
+
 				line := p.t.Eat().Line
+
+				if p.t.Get().Lexeme == ":" {
+					p.t.Eat()
+
+					if p.t.Get().Lexeme == "]" {
+						Stop("Empty slice expression at line " + fmt.Sprint(line))
+					}
+
+					sliceNode := SliceExpNode{}
+					sliceNode.Line = line
+					sliceNode.Left = left
+					sliceNode.From = NumberNode{Value: "0"}
+					sliceNode.To = p.ParseExp()
+					left = sliceNode
+
+					if p.t.Get().Lexeme != "]" {
+						Stop("Expected ']'")
+					}
+
+					p.t.Eat()
+
+					return left
+				}
+
 				index := p.ParseExp()
 
 				n := IndexAccessExpNode{}
@@ -896,7 +921,21 @@ func (p *Parser) ParseMemberExp() Exp {
 				n.Left = left
 				n.Index = index
 
-				left = n
+				if p.t.Get().Lexeme == ":" {
+					p.t.Eat()
+					sliceNode := SliceExpNode{}
+					sliceNode.Line = line
+					sliceNode.Left = left
+					sliceNode.From = index
+					if p.t.Get().Lexeme == "]" {
+						sliceNode.To = nil
+					} else {
+						sliceNode.To = p.ParseExp()
+					}
+					left = sliceNode
+				} else {
+					left = n
+				}
 
 				if p.t.Get().Lexeme == "]" {
 					p.t.Eat()

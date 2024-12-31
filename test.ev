@@ -1,22 +1,17 @@
+var list = [1,2,3]
 
-struct PersonList{
-	values
+for item in list {
+  print(item)
 }
 
-struct Person{
-	name
+for index,item in list {
+  print(index)
+  print(item)
 }
 
-var list = PersonList{}
+var dict = {a:1, b:2}
 
-var persons = []
-
-persons.add(Person{name:"Matias"})
-persons.add(Person{name:"Juan"})
-persons.add(Person{name:"Pedro"})
-
-list.values = persons
-
-list.values[1].name = "Juan jeje"
-
-print(list.values[1].name)
+for key, val in dict{
+  print("key: " + string(key))
+  print("val: " + string(val))
+}

@@ -19,8 +19,28 @@ func (a ObjectValue) GetType() ValueType {
 }
 
 func (a ObjectValue) GetProp(v *RuntimeValue, prop string) (RuntimeValue, error) {
-	propValue, exists := a.Value[prop]
 
+	if prop == "get" {
+		return NativeFunctionValue{
+			Value: func(args []RuntimeValue) RuntimeValue {
+				if len(args) < 1 {
+					return ErrorValue{Value: "Missing arguments for get method"}
+				}
+
+				if args[0].GetType() != StringType {
+					return ErrorValue{Value: "First argument for get method must be a string"}
+				}
+
+				key := args[0].(StringValue).Value
+				if val, ok := a.Value[key]; ok {
+					return val
+				}
+
+				return ErrorValue{Value: "Key not found"}
+			},
+		}, nil
+	}
+	propValue, exists := a.Value[prop]
 	if !exists {
 		propValue = a.Struct.Methods[prop]
 		switch propValue.GetType() {

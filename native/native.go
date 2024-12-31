@@ -68,6 +68,10 @@ func IsNothing(args []values.RuntimeValue) values.RuntimeValue {
 }
 
 func ToNumber(args []values.RuntimeValue) values.RuntimeValue {
+	if len(args) == 0 {
+		return values.ErrorValue{Value: "Missing argument to number parse function"}
+	}
+
 	val := args[0]
 
 	switch val.GetType() {
@@ -84,6 +88,10 @@ func ToNumber(args []values.RuntimeValue) values.RuntimeValue {
 	}
 }
 func ToInteger(args []values.RuntimeValue) values.RuntimeValue {
+	if len(args) == 0 {
+		return values.ErrorValue{Value: "Missing argument to integer parse function"}
+	}
+
 	val := args[0]
 
 	switch val.GetType() {
@@ -101,12 +109,18 @@ func ToInteger(args []values.RuntimeValue) values.RuntimeValue {
 }
 
 func ToString(args []values.RuntimeValue) values.RuntimeValue {
+	if len(args) == 0 {
+		return values.ErrorValue{Value: "Missing argument to string parse function"}
+	}
 	value := args[0]
 
 	return values.StringValue{Value: value.GetString()}
 }
 
 func ToBool(args []values.RuntimeValue) values.RuntimeValue {
+	if len(args) == 0 {
+		return values.ErrorValue{Value: "Missing argument to bool parse function"}
+	}
 	value := args[0]
 
 	return values.BoolValue{Value: value.GetBool()}
@@ -173,5 +187,8 @@ func PrintStdOut(args []values.RuntimeValue) values.RuntimeValue {
 }
 
 func Type(args []values.RuntimeValue) values.RuntimeValue {
+	if len(args) == 0 {
+		return values.ErrorValue{Value: "Missing argument for type function"}
+	}
 	return values.StringValue{Value: args[0].GetType().String()}
 }

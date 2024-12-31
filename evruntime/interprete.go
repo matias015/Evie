@@ -265,10 +265,10 @@ func (e Evaluator) EvaluateForInStmt(node parser.ForInSatementNode, env *environ
 			}
 
 			// Load variables in env on each iteration
-			env.DeclareVar(node.LocalVarName, value)
+			env.ForceDeclare(node.LocalVarName, value)
 
 			if node.IndexVarName != "" {
-				env.DeclareVar(node.IndexVarName, values.NumberValue{Value: float64(index)})
+				env.ForceDeclare(node.IndexVarName, values.NumberValue{Value: float64(index)})
 			}
 
 			// LOOP through for in body!
@@ -301,9 +301,9 @@ func (e Evaluator) EvaluateForInStmt(node parser.ForInSatementNode, env *environ
 				break
 			}
 
-			env.DeclareVar(node.LocalVarName, values.StringValue{Value: index})
+			env.ForceDeclare(node.LocalVarName, values.StringValue{Value: index})
 			if node.IndexVarName != "" {
-				env.DeclareVar(node.IndexVarName, value)
+				env.ForceDeclare(node.IndexVarName, value)
 			}
 
 			for _, stmt := range node.Body {
@@ -477,9 +477,13 @@ func (e Evaluator) EvaluateVarDeclaration(node parser.VarDeclarationNode, env *e
 
 	parsed := e.EvaluateExpression(node.Right, env)
 
-	if IsError(parsed) {
+	parsedtype := parsed.GetType()
+
+	if parsedtype == values.ErrorType {
 		return parsed
 	}
+	// TODO
+	// copy() native function to make copies of complex values
 
 	err := env.DeclareVar(identifier.Value, parsed)
 
@@ -618,6 +622,10 @@ func (e Evaluator) EvaluateSliceExpression(node parser.SliceExpNode, env *enviro
 			ret = fn.(values.NativeFunctionValue).Value([]values.RuntimeValue{init})
 		} else {
 			ret = fn.(values.NativeFunctionValue).Value([]values.RuntimeValue{init, end})
+		}
+
+		if ret.GetType() == values.ErrorType {
+			return e.Panic(ret.(values.ErrorValue).Value, node.Line, env)
 		}
 
 		return ret
@@ -990,21 +998,42 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 			return val
 		}
 
-		if val.GetType() != values.ArrayType {
-			return e.Panic("Invalid array assignment", node.Line, env)
+		if val.GetType() == values.ArrayType {
+			index := e.EvaluateExpression(expNode.Index, env)
+
+			if index.GetType() == values.ErrorType {
+				return index
+			}
+
+			if index.GetType() != values.NumberType {
+				return e.Panic("Invalid array index", node.Line, env)
+			}
+
+			finalIndex := int(index.GetNumber())
+
+			if finalIndex < 0 {
+				finalIndex = len(val.(*values.ArrayValue).Value) + finalIndex
+			}
+
+			if finalIndex >= len(val.(*values.ArrayValue).Value) {
+				return e.Panic("Invalid array index or out of bounds with index: "+fmt.Sprint(finalIndex), node.Line, env) // fmt.Sprintf("Invalid array index or out of bounds with index: %d", node.Line, env)
+			}
+
+			val.(*values.ArrayValue).Value[int(index.GetNumber())] = right
+		} else if val.GetType() == values.DictionaryType {
+			key := e.EvaluateExpression(expNode.Index, env)
+
+			if key.GetType() == values.ErrorType {
+				return key
+			}
+
+			if key.GetType() != values.StringType {
+				return e.Panic("Invalid dictionary key", node.Line, env)
+			}
+
+			val.(*values.DictionaryValue).Value[key.GetString()] = right
 		}
 
-		index := e.EvaluateExpression(expNode.Index, env)
-
-		if index.GetType() == values.ErrorType {
-			return index
-		}
-
-		if index.GetType() != values.NumberType {
-			return e.Panic("Invalid array index", node.Line, env)
-		}
-
-		val.(*values.ArrayValue).Value[int(index.GetNumber())] = right
 		// chain := e.ResolveIndexAccessChain(left.(parser.IndexAccessExpNode), env)
 		// _, err := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
 
@@ -1036,7 +1065,7 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 
 		// return right
 	} else {
-		_, err := env.SetVar(left, right)
+		err := env.SetVar(left, right)
 
 		if err != nil {
 			return e.Panic(err.Error(), node.Line, env)
