@@ -99,38 +99,15 @@ func Tokenize(input string) []Token {
 			continue
 		}
 
-		// If it is new line
-		// if token == '\r' {
-		// 	if t.HasNext() && t.Get() == '\n' {
-		// 		t.Eat()
-		// 		t.Eat()
-		// 		line += 1
-
-		// 		lastAdded := tokens[len(tokens)-1].Kind
-
-		// 		if lastAdded != "eol" && lastAdded != "rbrace" && lastAdded != "lbrace" && lastAdded != "rbracket" && lastAdded != "lbracket" && lastAdded != "comma" {
-		// 			tokens = append(tokens, Token{
-		// 				Kind:   "eol",
-		// 				Lexeme: "eol",
-		// 				Line:   line,
-		// 				Column: 0,
-		// 			})
-		// 		}
-		// 		continue
-		// 	} else {
-		// 		t.Eat()
-		// 		continue
-		// 	}
-		// }
-
 		// If it is a letter
 		if IsAlpha(token) || token == '_' {
-			t.Eat()
 			word += string(token)
 			for {
-				if t.HasNext() && (IsAlpha(t.Get()) || isNumber(t.Get()) || t.Get() == '_' || t.Get() == '$') {
-					word += string(t.Eat())
+				if t.HasNext() && (IsAlpha(t.GetNext()) || isNumber(t.GetNext()) || t.GetNext() == '_' || t.GetNext() == '$') {
+					t.Eat()
+					word += string(t.Get())
 				} else {
+					t.Eat()
 					break
 				}
 			}
