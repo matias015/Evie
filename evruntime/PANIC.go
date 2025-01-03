@@ -9,15 +9,47 @@ import (
 func IsError(val values.RuntimeValue) bool {
 	return (val.GetType() == values.ErrorType)
 }
-func (e *Evaluator) Panic(msg string, line int, env *environment.Environment) values.RuntimeValue {
-	output := "\n >>> DONT PANIC, but something went wrong at line " + fmt.Sprint(line) + " at module " + env.ModuleName + ":\n\t" + msg + "\n"
+func (e Evaluator) Panic(errorType string, msg string, line int, env *environment.Environment) values.ErrorValue {
 
-	if len(e.CallStack) > 0 {
+	errorStruct, _ := env.GetVar("ErrorObject", line)
+
+	errProperties := make(map[string]values.RuntimeValue)
+
+	errProperties["message"] = values.StringValue{Value: msg}
+	errProperties["type"] = values.StringValue{Value: errorType}
+	errProperties["line"] = values.NumberValue{Value: float64(line)}
+	errProperties["module"] = values.StringValue{Value: env.ModuleName}
+
+	callStack := &values.ArrayValue{Value: make([]values.RuntimeValue, 0)}
+
+	for i := len(e.CallStack) - 1; i >= 0; i-- {
+		callStack.Value = append(callStack.Value, values.StringValue{Value: e.CallStack[i]})
+	}
+
+	errProperties["callstack"] = callStack
+
+	return values.ErrorValue{
+		Object: &values.ObjectValue{
+			Struct: errorStruct.(values.StructValue),
+			Value:  errProperties,
+		},
+	}
+}
+
+func (e *Evaluator) PrintError(err values.ErrorValue) {
+
+	errValue := err.Object
+
+	output := "\n >>> DONT PANIC, but something went wrong at line " + errValue.Value["line"].GetString() + " at module " + errValue.Value["module"].GetString() + ":\n\t " + errValue.Value["type"].GetString() + ": " + errValue.Value["message"].GetString() + "\n"
+
+	cstack := errValue.Value["callstack"].(*values.ArrayValue).Value
+
+	if len(cstack) > 0 {
 		output += "\n >>> Detailed callstack:\n"
-		for i := len(e.CallStack) - 1; i >= 0; i-- {
-			output += fmt.Sprintf("\t%s\n", e.CallStack[i])
+		for i := len(cstack) - 1; i >= 0; i-- {
+			output += fmt.Sprintf("\t%s\n", cstack[i].GetString())
 		}
 	}
 
-	return values.ErrorValue{Value: output}
+	fmt.Println(output)
 }

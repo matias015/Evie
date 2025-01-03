@@ -18,7 +18,6 @@ const (
 	ReturnType
 	ObjectType
 	NamespaceType
-	CapturedErrorType
 	FileType
 	CustomType
 )
@@ -30,19 +29,18 @@ func (v ValueType) String() string {
 		"boolean",
 		"nothing",
 		"error",
-		"StructType",
-		"DictionaryType",
-		"ContinueType",
-		"BreakType",
-		"FunctionType",
-		"NativeFunctionType",
+		"Struct",
+		"Dictionary",
+		"Continue",
+		"Break",
+		"Function",
+		"NativeFunction",
 		"array",
-		"ReturnType",
-		"ObjectType",
-		"NamespaceType",
-		"CapturedErrorType",
-		"FileType",
-		"CustomType",
+		"Return",
+		"Object",
+		"Namespace",
+		"File",
+		"Custom",
 	}[v]
 }
 

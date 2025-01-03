@@ -14,14 +14,11 @@ var mapPool = sync.Pool{
 }
 
 type Environment struct {
-	// Parent evironment, if a variable is not found in the current environment
-	// it will be searched in the parent
-	Parent *Environment
 
 	// Variables is a map of variable names to their values
 	Variables []map[string]values.RuntimeValue
 
-	//
+	// keep tracking of imports flow to avoid circular imports
 	ImportChain map[string]bool
 
 	// Module Name

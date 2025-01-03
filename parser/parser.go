@@ -960,70 +960,70 @@ func (p *Parser) ParseCallMemberExp() Exp {
 	return member
 }
 
-func (p *Parser) ParseIndexAccessExp2() Exp {
+// func (p *Parser) ParseIndexAccessExp() Exp {
 
-	left := p.parseUnaryExp()
+// 	left := p.parseUnaryExp()
 
-	for p.t.Get().Lexeme == "[" {
+// 	for p.t.Get().Lexeme == "[" {
 
-		line := p.t.Eat().Line
+// 		line := p.t.Eat().Line
 
-		if p.t.Get().Lexeme == ":" {
-			p.t.Eat()
+// 		if p.t.Get().Lexeme == ":" {
+// 			p.t.Eat()
 
-			if p.t.Get().Lexeme == "]" {
-				Stop("Empty slice expression at line " + fmt.Sprint(line))
-			}
+// 			if p.t.Get().Lexeme == "]" {
+// 				Stop("Empty slice expression at line " + fmt.Sprint(line))
+// 			}
 
-			sliceNode := SliceExpNode{}
-			sliceNode.Line = line
-			sliceNode.Left = left
-			sliceNode.From = NumberNode{Value: "0"}
-			sliceNode.To = p.ParseExp()
-			left = sliceNode
+// 			sliceNode := SliceExpNode{}
+// 			sliceNode.Line = line
+// 			sliceNode.Left = left
+// 			sliceNode.From = NumberNode{Value: "0"}
+// 			sliceNode.To = p.ParseExp()
+// 			left = sliceNode
 
-			if p.t.Get().Lexeme != "]" {
-				Stop("Expected ']'")
-			}
+// 			if p.t.Get().Lexeme != "]" {
+// 				Stop("Expected ']'")
+// 			}
 
-			p.t.Eat()
+// 			p.t.Eat()
 
-			return left
-		}
+// 			return left
+// 		}
 
-		index := p.ParseExp()
+// 		index := p.ParseExp()
 
-		n := IndexAccessExpNode{}
-		n.Line = line
-		n.Left = left
-		n.Index = index
+// 		n := IndexAccessExpNode{}
+// 		n.Line = line
+// 		n.Left = left
+// 		n.Index = index
 
-		if p.t.Get().Lexeme == ":" {
-			p.t.Eat()
-			sliceNode := SliceExpNode{}
-			sliceNode.Line = line
-			sliceNode.Left = left
-			sliceNode.From = index
-			if p.t.Get().Lexeme == "]" {
-				sliceNode.To = nil
-			} else {
-				sliceNode.To = p.ParseExp()
-			}
-			left = sliceNode
-		} else {
-			left = n
-		}
+// 		if p.t.Get().Lexeme == ":" {
+// 			p.t.Eat()
+// 			sliceNode := SliceExpNode{}
+// 			sliceNode.Line = line
+// 			sliceNode.Left = left
+// 			sliceNode.From = index
+// 			if p.t.Get().Lexeme == "]" {
+// 				sliceNode.To = nil
+// 			} else {
+// 				sliceNode.To = p.ParseExp()
+// 			}
+// 			left = sliceNode
+// 		} else {
+// 			left = n
+// 		}
 
-		if p.t.Get().Lexeme == "]" {
-			p.t.Eat()
-		} else {
-			Stop("Expected ']' at line " + fmt.Sprint(line))
-		}
-	}
+// 		if p.t.Get().Lexeme == "]" {
+// 			p.t.Eat()
+// 		} else {
+// 			Stop("Expected ']' at line " + fmt.Sprint(line))
+// 		}
+// 	}
 
-	return left
+// 	return left
 
-}
+// }
 
 func (p *Parser) parseUnaryExp() Exp {
 

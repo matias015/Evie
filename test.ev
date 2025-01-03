@@ -1,17 +1,4 @@
-var list = [1,2,3]
 
-for item in list {
-  print(item)
-}
+var arr = [1,2,3]
 
-for index,item in list {
-  print(index)
-  print(item)
-}
-
-var dict = {a:1, b:2}
-
-for key, val in dict{
-  print("key: " + string(key))
-  print("val: " + string(val))
-}
+arr.find()

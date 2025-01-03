@@ -17,6 +17,24 @@ func SetupEnvironment(env *environment.Environment) {
 
 	env.PushScope()
 
+	env.ForceDeclare("RuntimeError", values.StringValue{Value: "RuntimeError"})
+	env.ForceDeclare("TypeError", values.StringValue{Value: "TypeError"})
+	env.ForceDeclare("InvalidIndexError", values.StringValue{Value: "InvalidIndexError"})
+	env.ForceDeclare("IdentifierError", values.StringValue{Value: "IdentifierError"})
+	env.ForceDeclare("ZeroDivisionError", values.StringValue{Value: "ZeroDivisionError"})
+	env.ForceDeclare("InvalidArgumentError", values.StringValue{Value: "InvalidArgumentError"})
+	env.ForceDeclare("InvalidConversionError", values.StringValue{Value: "InvalidConversionError"})
+	env.ForceDeclare("CircularImportError", values.StringValue{Value: "CircularImportError"})
+	env.ForceDeclare("PropertyError", values.StringValue{Value: "PropertyError"})
+
+	env.DeclareVar("ErrorObject", values.StructValue{
+		Name:    "ErrorObject",
+		Methods: make(map[string]values.RuntimeValue),
+		Properties: []string{
+			"message", "type",
+		},
+	})
+
 	env.DeclareVar("input", values.NativeFunctionValue{Value: ReadUserInput})
 	env.DeclareVar("print", values.NativeFunctionValue{Value: PrintStdOut})
 	env.DeclareVar("number", values.NativeFunctionValue{Value: ToNumber})
@@ -38,7 +56,17 @@ func SetupEnvironment(env *environment.Environment) {
 	}})
 
 	env.DeclareVar("panic", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
-		return values.ErrorValue{Value: "Panic! -> " + args[0].GetString()}
+		if len(args) == 0 {
+			return values.ErrorValue{Value: "Why?"}
+		}
+		if args[0].GetType() == values.StringType {
+			return values.ErrorValue{Value: "Panic! -> " + args[0].GetString()}
+		} else if args[0].GetType() == values.ObjectType {
+			obj := args[0].(*values.ObjectValue)
+			return values.ErrorValue{Value: obj.Value["message"].GetString(), ErrorType: obj.Value["type"].GetString()}
+		} else {
+			return values.ErrorValue{Value: "Panic while trying to panic, because panic argument is not valid"}
+		}
 	}})
 
 	arguments := values.ArrayValue{Value: []values.RuntimeValue{}}
@@ -157,8 +185,6 @@ func PrintValues(args []values.RuntimeValue, verboseStrings bool) {
 			}
 		} else if valType == values.ErrorType {
 			fmt.Print("'" + arg.(values.ErrorValue).Value + "'")
-		} else if valType == values.CapturedErrorType {
-			fmt.Print("'" + arg.(values.CapturedErrorValue).Value + "'")
 		} else if valType == values.NumberType {
 			fmt.Print(arg.(values.NumberValue).Value)
 		} else if valType == values.BoolType {

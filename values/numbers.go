@@ -30,7 +30,7 @@ func (n NumberValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 
 		if len(args) >= 1 {
 			if args[0].GetType() != NumberType {
-				return ErrorValue{Value: "First argument must be a number"}
+				return ErrorValue{ErrorType: InvalidArgumentError, Value: "First argument must be a number"}
 			}
 			mult = args[0].(NumberValue).Value
 			if mult < 1 {

@@ -37,7 +37,7 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 					from = length + from
 				}
 				if from > length || to > length {
-					return ErrorValue{Value: "Index out of range [" + strconv.Itoa(from) + ":" + strconv.Itoa(to) + "]"}
+					return ErrorValue{ErrorType: InvalidIndexError, Value: "Index out of range [" + strconv.Itoa(from) + ":" + strconv.Itoa(to) + "]"}
 				}
 				return &ArrayValue{Value: a.Value[from:to]}
 			} else if len(args) == 1 {
@@ -46,7 +46,7 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 					from = length + from
 				}
 				if from > length {
-					return ErrorValue{Value: "Index out of range [" + strconv.Itoa(from) + "]"}
+					return ErrorValue{ErrorType: RuntimeError, Value: "Index out of range [" + strconv.Itoa(from) + "]"}
 				}
 				return &ArrayValue{Value: a.Value[from:]}
 			} else {
@@ -112,7 +112,7 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 			Value: func(args []RuntimeValue) RuntimeValue {
 
 				if len(args) == 0 {
-					return ErrorValue{Value: "Missing argument for find method"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing argument for find method"}
 				}
 
 				arg := args[0]
@@ -138,7 +138,7 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 	props["remove"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
 		if len(args) == 1 {
 			if args[0].GetType() != NumberType {
-				return ErrorValue{Value: "First argument must be a number"}
+				return ErrorValue{ErrorType: InvalidArgumentError, Value: "First argument must be a number"}
 			}
 
 			index := int(args[0].(NumberValue).Value)
@@ -152,7 +152,7 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 				return BoolValue{Value: true}
 			}
 
-			return ErrorValue{Value: "Index out of range or array is empty"}
+			return ErrorValue{ErrorType: InvalidIndexError, Value: "Index out of range or array is empty"}
 		} else {
 			a.Value = a.Value[:len(a.Value)-1]
 		}
@@ -161,7 +161,7 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 
 	props["removeFirst"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
 		if len(a.Value) == 0 {
-			return ErrorValue{Value: "Array is empty"}
+			return ErrorValue{ErrorType: RuntimeError, Value: "Array is empty"}
 		}
 		a.Value = a.Value[1:]
 		return NothingValue{}
@@ -169,11 +169,11 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 
 	props["addPaddingLeft"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
 		if len(args) < 2 {
-			return ErrorValue{Value: "Missing arguments for addPaddingLeft method"}
+			return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing arguments for addPaddingLeft method"}
 		}
 
 		if args[1].GetType() != NumberType {
-			return ErrorValue{Value: "Second argument for addPaddingLeft method must be a number"}
+			return ErrorValue{ErrorType: InvalidArgumentError, Value: "Second argument for addPaddingLeft method must be a number"}
 		}
 
 		char := args[0].GetString()
@@ -188,11 +188,11 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 
 	props["addPaddingRight"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
 		if len(args) < 2 {
-			return ErrorValue{Value: "Missing arguments for addPaddingRight method"}
+			return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing arguments for addPaddingRight method"}
 		}
 
 		if args[1].GetType() != NumberType {
-			return ErrorValue{Value: "Second argument for addPaddingRight method must be a number"}
+			return ErrorValue{ErrorType: InvalidArgumentError, Value: "Second argument for addPaddingRight method must be a number"}
 		}
 
 		char := args[0].GetString()
@@ -209,7 +209,7 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 }
 
 func ArrayAdd(val *RuntimeValue, args []RuntimeValue) {
-	// First, get the current slice from the interface{}
+
 	currentSlice := (*val).(*ArrayValue)
 
 	currentSlice.Value = append(currentSlice.Value, args...)

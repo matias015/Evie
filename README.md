@@ -149,4 +149,44 @@ panic(msg)     // Throws an error with the given message
 getArgs()      // Returns the execution arguments
 ```
 
+## Basic Modules
+
+## The file system (fs) module
+```
+// Returns true if the file exists
+fs.exists(path)
+
+// Get all the content of the file
+fs.read(path)
+
+// Removes the file
+fs.remove(path)
+
+// Creates a file and returns the file descriptor
+var file = fs.create(filename)
+file.close() // Remember to close the file if not used after creation
+
+// or do
+fs.create(filename).close()
+
+
+// Opens a file
+var file = fs.open(path)
+
+// Reads a file line by line
+file.readLine()
+
+// Append text to the file
+file.append
+
+// Append a line to the file
+file.appendLine(line)
+
+// Set the cursor at the especified position
+file.seek(value)
+
+// Close the opened file
+file.close()
+```
+
 Features and Documentation still in development

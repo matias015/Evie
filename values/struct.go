@@ -3,6 +3,7 @@ package values
 import "fmt"
 
 type StructValue struct {
+	Name       string
 	Properties []string
 	Methods    map[string]RuntimeValue
 }

@@ -24,11 +24,11 @@ func (a ObjectValue) GetProp(v *RuntimeValue, prop string) (RuntimeValue, error)
 		return NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
 				if len(args) < 1 {
-					return ErrorValue{Value: "Missing arguments for get method"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing arguments for get method"}
 				}
 
 				if args[0].GetType() != StringType {
-					return ErrorValue{Value: "First argument for get method must be a string"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "First argument for get method must be a string"}
 				}
 
 				key := args[0].(StringValue).Value
@@ -36,7 +36,7 @@ func (a ObjectValue) GetProp(v *RuntimeValue, prop string) (RuntimeValue, error)
 					return val
 				}
 
-				return ErrorValue{Value: "Key not found"}
+				return ErrorValue{ErrorType: RuntimeError, Value: "Key not found"}
 			},
 		}, nil
 	}

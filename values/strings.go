@@ -45,15 +45,15 @@ func (s StringValue) GetProp(value *RuntimeValue, name string) (RuntimeValue, er
 		"addPaddingLeft": NativeFunctionValue{
 			Value: func(args []RuntimeValue) RuntimeValue {
 				if len(args) < 2 {
-					return ErrorValue{Value: "Missing arguments for addPaddingLeft method"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing arguments for addPaddingLeft method"}
 				}
 
 				if args[0].GetType() != StringType {
-					return ErrorValue{Value: "First argument for addPaddingLeft method must be a string"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "First argument for addPaddingLeft method must be a string"}
 				}
 
 				if args[1].GetType() != NumberType {
-					return ErrorValue{Value: "Second argument for addPaddingLeft method must be a number"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "Second argument for addPaddingLeft method must be a number"}
 				}
 
 				char := args[0].GetString()
@@ -70,15 +70,15 @@ func (s StringValue) GetProp(value *RuntimeValue, name string) (RuntimeValue, er
 			Value: func(args []RuntimeValue) RuntimeValue {
 
 				if len(args) < 2 {
-					return ErrorValue{Value: "Missing arguments for addPaddingLeft method"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing arguments for addPaddingLeft method"}
 				}
 
 				if args[0].GetType() != StringType {
-					return ErrorValue{Value: "First argument for addPaddingLeft method must be a string"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "First argument for addPaddingLeft method must be a string"}
 				}
 
 				if args[1].GetType() != NumberType {
-					return ErrorValue{Value: "Second argument for addPaddingLeft method must be a number"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "Second argument for addPaddingLeft method must be a number"}
 				}
 
 				char := args[0].(StringValue).Value
@@ -96,7 +96,7 @@ func (s StringValue) GetProp(value *RuntimeValue, name string) (RuntimeValue, er
 				needed := " "
 				if len(args) > 0 {
 					if args[0].GetType() != StringType {
-						return ErrorValue{Value: "Argument for trim method must be a string"}
+						return ErrorValue{ErrorType: InvalidArgumentError, Value: "Argument for trim method must be a string"}
 					}
 					needed = args[0].(StringValue).Value
 				}
@@ -110,7 +110,7 @@ func (s StringValue) GetProp(value *RuntimeValue, name string) (RuntimeValue, er
 
 				if len(args) > 0 {
 					if args[0].GetType() != StringType {
-						return ErrorValue{Value: "First argument for toArray method must be a string"}
+						return ErrorValue{ErrorType: InvalidArgumentError, Value: "First argument for toArray method must be a string"}
 					}
 					sep = args[0].(StringValue).Value
 				}
@@ -133,7 +133,7 @@ func (s StringValue) GetProp(value *RuntimeValue, name string) (RuntimeValue, er
 			length := len(s.Value)
 			if len(args) == 2 {
 				if args[0].GetType() != NumberType || args[1].GetType() != NumberType {
-					return ErrorValue{Value: "Arguments for slice method should be numbers"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "Arguments for slice method should be numbers"}
 				}
 				from := int(args[0].(NumberValue).Value)
 				to := int(args[1].(NumberValue).Value)
@@ -144,23 +144,23 @@ func (s StringValue) GetProp(value *RuntimeValue, name string) (RuntimeValue, er
 					from = length + from
 				}
 				if from >= length || to >= length || from > to {
-					return ErrorValue{Value: "Index out of range [" + strconv.Itoa(from) + ":" + strconv.Itoa(to) + "]"}
+					return ErrorValue{ErrorType: RuntimeError, Value: "Index out of range [" + strconv.Itoa(from) + ":" + strconv.Itoa(to) + "]"}
 				}
 				return StringValue{Value: s.Value[from:to]}
 			} else if len(args) == 1 {
 				if args[0].GetType() != NumberType {
-					return ErrorValue{Value: "Argument for slice method should be a number"}
+					return ErrorValue{ErrorType: InvalidArgumentError, Value: "Argument for slice method should be a number"}
 				}
 				from := int(args[0].(NumberValue).Value)
 				if from < 0 {
 					from = length + from
 				}
 				if from >= length {
-					return ErrorValue{Value: "Index out of range [" + strconv.Itoa(from) + "]"}
+					return ErrorValue{ErrorType: RuntimeError, Value: "Index out of range [" + strconv.Itoa(from) + "]"}
 				}
 				return StringValue{Value: s.Value[from:]}
 			} else {
-				return ErrorValue{Value: "Missing arguments for slice method, need at least one"}
+				return ErrorValue{ErrorType: RuntimeError, Value: "Missing arguments for slice method, need at least one"}
 			}
 		},
 		},

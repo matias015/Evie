@@ -46,9 +46,9 @@ func AddRoute(args []values.RuntimeValue) values.RuntimeValue {
 
 		args = append(args, reqObject)
 
-		fn.Environment.(*environment.Environment).PushScope()
+		// fn.Environment.(*environment.Environment).PushScope()
 		ret := fn.Evaluator.ExecuteCallback(fn, args)
-		fn.Environment.(*environment.Environment).ExitScope()
+		// fn.Environment.(*environment.Environment).ExitScope()
 
 		switch returned := ret.(type) {
 		case values.ErrorValue:
