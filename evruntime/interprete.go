@@ -102,8 +102,6 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 		// Create new environment for the module with the parent environment
 		envForModule := environment.NewEnvironment()
 		native.SetupEnvironment(envForModule)
-
-		envForModule.Variables = make([]map[string]values.RuntimeValue, 0)
 		envForModule.ImportChain = env.ImportChain
 		envForModule.ImportChain[env.ModuleName] = true
 		envForModule.ModuleName = node.Path
