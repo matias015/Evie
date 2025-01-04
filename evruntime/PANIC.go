@@ -11,7 +11,7 @@ func IsError(val values.RuntimeValue) bool {
 }
 func (e Evaluator) Panic(errorType string, msg string, line int, env *environment.Environment) values.ErrorValue {
 
-	errorStruct, _ := env.GetVar("ErrorObject", line)
+	errorStruct, _ := env.GetVar("ErrorObject")
 
 	errProperties := make(map[string]values.RuntimeValue)
 

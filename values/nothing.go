@@ -17,6 +17,6 @@ func (a NothingValue) GetBool() bool {
 func (a NothingValue) GetType() ValueType {
 	return NothingType
 }
-func (b NothingValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (b NothingValue) GetProp(name string) (RuntimeValue, error) {
 	return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 }

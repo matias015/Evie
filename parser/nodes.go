@@ -74,7 +74,7 @@ type ExpressionStmtNode struct {
 func (e ExpressionStmtNode) StmtType() NodeType { return NodeExpStmt }
 
 type NumberNode struct {
-	Value string
+	Value float64
 	Line  int
 }
 
@@ -152,8 +152,8 @@ type UnaryExpNode struct {
 func (n UnaryExpNode) ExpType() NodeType { return NodeUnaryExp }
 
 type CallExpNode struct {
-	Name Exp
 	Args []Exp
+	Name Exp
 	Line int
 }
 
@@ -193,7 +193,7 @@ func (n ObjectInitExpNode) ExpType() NodeType { return NodeObjectInitExp }
 // Struct Initialization, NOT ANY OBJECT LIKE JS
 type MemberExpNode struct {
 	Left   Exp
-	Member IdentifierNode
+	Member string
 	Line   int
 }
 
@@ -231,10 +231,10 @@ type VarDeclarationNode struct {
 func (n VarDeclarationNode) StmtType() NodeType { return NodeVarDeclaration }
 
 type IfStatementNode struct {
-	Condition Exp
-	Body      []Stmt
 	ElseIf    []IfStatementNode
+	Body      []Stmt
 	ElseBody  []Stmt
+	Condition Exp
 	Line      int
 }
 

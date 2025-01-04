@@ -20,7 +20,7 @@ func (a NamespaceValue) GetBool() bool {
 func (a NamespaceValue) GetType() ValueType {
 	return NamespaceType
 }
-func (a NamespaceValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (a NamespaceValue) GetProp(name string) (RuntimeValue, error) {
 
 	prop, ex := a.Value[name]
 

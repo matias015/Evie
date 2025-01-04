@@ -1,6 +1,7 @@
 package values
 
 import (
+	"fmt"
 	"strconv"
 )
 
@@ -22,120 +23,99 @@ func (a ArrayValue) GetBool() bool {
 	return len(a.Value) > 0
 }
 
-func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (a *ArrayValue) GetProp(name string) (RuntimeValue, error) {
 
-	props := map[string]RuntimeValue{
-		"slice": NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
-			length := len(a.Value)
-			if len(args) == 2 {
-				from := int(args[0].(NumberValue).Value)
-				to := int(args[1].(NumberValue).Value)
-				if to < 0 {
-					to = length + to
-				}
-				if from < 0 {
-					from = length + from
-				}
-				if from > length || to > length {
-					return ErrorValue{ErrorType: InvalidIndexError, Value: "Index out of range [" + strconv.Itoa(from) + ":" + strconv.Itoa(to) + "]"}
-				}
-				return &ArrayValue{Value: a.Value[from:to]}
-			} else if len(args) == 1 {
-				from := int(args[0].(NumberValue).Value)
-				if from < 0 {
-					from = length + from
-				}
-				if from > length {
-					return ErrorValue{ErrorType: RuntimeError, Value: "Index out of range [" + strconv.Itoa(from) + "]"}
-				}
-				return &ArrayValue{Value: a.Value[from:]}
-			} else {
-				return &ArrayValue{Value: []RuntimeValue{}}
-			}
-		},
-		},
-		"add": NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
-			for _, arg := range args {
-				a.Value = append(a.Value, arg)
-			}
-			return BoolValue{Value: true}
-		},
-		},
-		"addFirst": NativeFunctionValue{
-			Value: func(args []RuntimeValue) RuntimeValue {
-				for _, arg := range args {
-					a.Value = append([]RuntimeValue{arg}, a.Value...)
-				}
-				return BoolValue{Value: true}
-			},
-		},
-		"has": NativeFunctionValue{
-			Value: func(args []RuntimeValue) RuntimeValue {
-				if len(args) == 1 {
-					for _, arg := range args {
-						for _, val := range a.Value {
-							if arg.GetType() == val.GetType() {
-								if arg.GetString() == val.GetString() {
-									return BoolValue{Value: true}
-								}
-							}
-						}
-					}
-					return BoolValue{Value: false}
-				} else if len(args) > 1 {
-
-					has := false
-
-					for _, arg := range args {
-						has = false
-						for _, val := range a.Value {
-							if arg.GetType() == val.GetType() {
-								if arg.GetString() == val.GetString() {
-									has = true
-									break
-								}
-							}
-						}
-
-						if has == false {
-							return BoolValue{Value: false}
-						}
-
-					}
-					return BoolValue{Value: true}
-				} else {
-					return BoolValue{Value: false}
-				}
-			},
-		},
-		"find": NativeFunctionValue{
-			Value: func(args []RuntimeValue) RuntimeValue {
-
-				if len(args) == 0 {
-					return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing argument for find method"}
-				}
-
-				arg := args[0]
-
-				for index, value := range a.Value {
-					if arg.GetType() == value.GetType() {
-						if arg.GetString() == value.GetString() {
-							return NumberValue{Value: float64(index)}
-						}
-					}
-				}
-
-				return NumberValue{Value: -1.0}
-			},
-		},
-		"len": NativeFunctionValue{
-			Value: func(args []RuntimeValue) RuntimeValue {
-				return NumberValue{Value: float64(len(a.Value))}
-			},
-		},
+	if name == "add" {
+		return NativeFunctionValue{Value: ArrayAdd(a)}, nil
+	} else if name == "len" {
+		return NativeFunctionValue{Value: ArrayLength(a)}, nil
+	} else if name == "slice" {
+		return NativeFunctionValue{Value: ArraySlice(a)}, nil
+	} else if name == "has" {
+		return NativeFunctionValue{Value: ArrayHas(a)}, nil
+	} else if name == "find" {
+		return NativeFunctionValue{Value: ArrayFind(a)}, nil
+	} else if name == "remove" {
+		return NativeFunctionValue{Value: ArrayRemove(a)}, nil
+	} else if name == "addPaddingLeft" {
+		return NativeFunctionValue{Value: ArrayAddPaddingLeft(a)}, nil
+	} else if name == "addPaddingRight" {
+		return NativeFunctionValue{Value: ArrayAddPaddingRight(a)}, nil
+	} else if name == "addFirst" {
+		return NativeFunctionValue{Value: ArrayAddFirst(a)}, nil
+	} else if name == "removeFirst" {
+		return NativeFunctionValue{Value: ArrayRemoveFirst(a)}, nil
+	} else {
+		return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 	}
+}
 
-	props["remove"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+func ArrayAddFirst(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
+		for _, arg := range args {
+			a.Value = append([]RuntimeValue{arg}, a.Value...)
+		}
+		return BoolValue{Value: true}
+	}
+}
+func ArrayRemoveFirst(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
+		if len(a.Value) == 0 {
+			return ErrorValue{ErrorType: RuntimeError, Value: "Array is empty"}
+		}
+		a.Value = a.Value[1:]
+		return NothingValue{}
+	}
+}
+
+func ArrayAdd(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
+		for _, arg := range args {
+			a.Value = append(a.Value, arg)
+		}
+		return BoolValue{Value: true}
+	}
+}
+func ArrayLength(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
+		return NumberValue{Value: float64(len(a.Value))}
+	}
+}
+
+func ArraySlice(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
+		length := len(a.Value)
+		if len(args) == 2 {
+			from := int(args[0].(NumberValue).Value)
+			to := int(args[1].(NumberValue).Value)
+			if to < 0 {
+				to = length + to
+			}
+			if from < 0 {
+				from = length + from
+			}
+			if from > length || to > length {
+				return ErrorValue{ErrorType: InvalidIndexError, Value: "Index out of range [" + strconv.Itoa(from) + ":" + strconv.Itoa(to) + "]"}
+			}
+			return &ArrayValue{Value: a.Value[from:to]}
+		} else if len(args) == 1 {
+			from := int(args[0].(NumberValue).Value)
+			if from < 0 {
+				from = length + from
+			}
+			if from > length {
+				return ErrorValue{ErrorType: RuntimeError, Value: "Index out of range [" + strconv.Itoa(from) + "]"}
+			}
+			return &ArrayValue{Value: a.Value[from:]}
+		} else {
+			return &ArrayValue{Value: []RuntimeValue{}}
+		}
+
+	}
+}
+
+func ArrayRemove(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
 		if len(args) == 1 {
 			if args[0].GetType() != NumberType {
 				return ErrorValue{ErrorType: InvalidArgumentError, Value: "First argument must be a number"}
@@ -157,17 +137,72 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 			a.Value = a.Value[:len(a.Value)-1]
 		}
 		return NothingValue{}
-	}}
+	}
+}
 
-	props["removeFirst"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
-		if len(a.Value) == 0 {
-			return ErrorValue{ErrorType: RuntimeError, Value: "Array is empty"}
+func ArrayHas(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
+
+		if len(args) == 1 {
+			for _, arg := range args {
+				for _, val := range a.Value {
+					if arg.GetType() == val.GetType() {
+						if arg.GetString() == val.GetString() {
+							return BoolValue{Value: true}
+						}
+					}
+				}
+			}
+			return BoolValue{Value: false}
+		} else if len(args) > 1 {
+
+			has := false
+
+			for _, arg := range args {
+				has = false
+				for _, val := range a.Value {
+					if arg.GetType() == val.GetType() {
+						if arg.GetString() == val.GetString() {
+							has = true
+							break
+						}
+					}
+				}
+
+				if has == false {
+					return BoolValue{Value: false}
+				}
+
+			}
+			return BoolValue{Value: true}
+		} else {
+			return BoolValue{Value: false}
 		}
-		a.Value = a.Value[1:]
-		return NothingValue{}
-	}}
+	}
+}
 
-	props["addPaddingLeft"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+func ArrayFind(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
+		if len(args) == 0 {
+			return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing argument for find method"}
+		}
+
+		arg := args[0]
+
+		for index, value := range a.Value {
+			if arg.GetType() == value.GetType() {
+				if arg.GetString() == value.GetString() {
+					return NumberValue{Value: float64(index)}
+				}
+			}
+		}
+
+		return NumberValue{Value: -1.0}
+	}
+}
+
+func ArrayAddPaddingLeft(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
 		if len(args) < 2 {
 			return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing arguments for addPaddingLeft method"}
 		}
@@ -184,9 +219,11 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 		}
 		output = append(output, a.Value...)
 		return &ArrayValue{Value: output}
-	}}
+	}
+}
 
-	props["addPaddingRight"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+func ArrayAddPaddingRight(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
 		if len(args) < 2 {
 			return ErrorValue{ErrorType: InvalidArgumentError, Value: "Missing arguments for addPaddingRight method"}
 		}
@@ -203,15 +240,5 @@ func (a *ArrayValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 		}
 		output = append(a.Value, output...)
 		return &ArrayValue{Value: output}
-	}}
-
-	return props[name], nil
-}
-
-func ArrayAdd(val *RuntimeValue, args []RuntimeValue) {
-
-	currentSlice := (*val).(*ArrayValue)
-
-	currentSlice.Value = append(currentSlice.Value, args...)
-
+	}
 }

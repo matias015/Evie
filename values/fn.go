@@ -29,6 +29,6 @@ func (a FunctionValue) GetType() ValueType {
 	return FunctionType
 }
 
-func (f FunctionValue) GetProp(val *RuntimeValue, name string) (RuntimeValue, error) {
+func (f FunctionValue) GetProp(name string) (RuntimeValue, error) {
 	return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 }

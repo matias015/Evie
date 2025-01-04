@@ -20,6 +20,6 @@ func (a ReturnValue) GetBool() bool {
 func (a ReturnValue) GetType() ValueType {
 	return ReturnType
 }
-func (b ReturnValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (b ReturnValue) GetProp(name string) (RuntimeValue, error) {
 	return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 }

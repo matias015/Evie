@@ -32,7 +32,7 @@ func (a ErrorValue) GetString() string {
 func (a ErrorValue) GetType() ValueType {
 	return ErrorType
 }
-func (b ErrorValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (b ErrorValue) GetProp(name string) (RuntimeValue, error) {
 	methods := make(map[string]RuntimeValue, 2)
 
 	// methods

@@ -20,6 +20,6 @@ func (a ContinueValue) GetNumber() float64 {
 func (a ContinueValue) GetType() ValueType {
 	return ContinueType
 }
-func (b ContinueValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (b ContinueValue) GetProp(name string) (RuntimeValue, error) {
 	return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 }

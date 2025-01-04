@@ -27,7 +27,7 @@ func (s FileValue) GetString() string {
 	return "File Value"
 }
 
-func (s FileValue) GetProp(v *values.RuntimeValue, name string) (values.RuntimeValue, error) {
+func (s FileValue) GetProp(name string) (values.RuntimeValue, error) {
 	props := map[string]values.RuntimeValue{}
 
 	props = map[string]values.RuntimeValue{

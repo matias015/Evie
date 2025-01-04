@@ -15,3 +15,7 @@ func ReadFile(path string) string {
 	// imprimir el string
 	return datosComoString
 }
+
+func AddExtension(filename string) string {
+	return filename + ".ev"
+}

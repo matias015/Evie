@@ -18,7 +18,7 @@ func (a ObjectValue) GetType() ValueType {
 	return ObjectType
 }
 
-func (a ObjectValue) GetProp(v *RuntimeValue, prop string) (RuntimeValue, error) {
+func (a *ObjectValue) GetProp(prop string) (RuntimeValue, error) {
 
 	if prop == "get" {
 		return NativeFunctionValue{
@@ -49,7 +49,7 @@ func (a ObjectValue) GetProp(v *RuntimeValue, prop string) (RuntimeValue, error)
 			return fn, nil
 		case FunctionType:
 			fn := propValue.(FunctionValue)
-			fn.StructObjRef = (*v).(*ObjectValue)
+			fn.StructObjRef = a
 			return fn, nil
 		}
 	}

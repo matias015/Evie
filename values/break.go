@@ -18,6 +18,6 @@ func (a BreakValue) GetBool() bool {
 func (a BreakValue) GetType() ValueType {
 	return BreakType
 }
-func (b BreakValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (b BreakValue) GetProp(name string) (RuntimeValue, error) {
 	return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 }

@@ -21,11 +21,20 @@ func (a NumberValue) GetBool() bool {
 func (a NumberValue) GetType() ValueType {
 	return NumberType
 }
-func (n NumberValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
-	props := make(map[string]RuntimeValue, 2)
+func (n NumberValue) GetProp(name string) (RuntimeValue, error) {
 
-	props["round"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
+	if name == "round" {
+		return NativeFunctionValue{Value: NumberRound(n)}, nil
+	} else if name == "isInt" {
+		return NativeFunctionValue{Value: NumberIsInt(n)}, nil
+	} else {
+		return nil, fmt.Errorf("Property %s not found", name)
+	}
 
+}
+
+func NumberRound(n NumberValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
 		mult := 1.0
 
 		if len(args) >= 1 {
@@ -40,17 +49,11 @@ func (n NumberValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error)
 
 		val := math.Round(n.Value*mult) / mult
 		return NumberValue{Value: val}
-	}}
-
-	props["isInt"] = NativeFunctionValue{Value: func(args []RuntimeValue) RuntimeValue {
-		return BoolValue{Value: n.Value == float64(int(n.Value))}
-	}}
-
-	p, exist := props[name]
-
-	if !exist {
-		return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 	}
+}
 
-	return p, nil
+func NumberIsInt(n NumberValue) func([]RuntimeValue) RuntimeValue {
+	return func(args []RuntimeValue) RuntimeValue {
+		return BoolValue{Value: n.Value == float64(int(n.Value))}
+	}
 }

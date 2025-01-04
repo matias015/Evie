@@ -12,30 +12,22 @@ import (
 
 func main() {
 
-	args := os.Args
-	var file string = "main"
-	if len(args) > 1 {
-		file = args[1]
-	} else {
-		panic("Please specify a file")
-	}
+	file := GetFileName()
 
-	var source string = utils.ReadFile(file + ".ev")
-	// for _, char := range source {
-	// 	fmt.Println(char)
-	// }
-	// os.Exit(1)
+	var source string = utils.ReadFile(utils.AddExtension(file))
 
 	tokens := lexer.Tokenize(source)
 
 	// litter.Dump(tokens)
 	// os.Exit(1)
 	ast := parser.NewParser(tokens).GetAST()
-	// litter.Dump(ast[0])
+	// litter.Dump(ast)
 	// os.Exit(1)
 
-	env := environment.NewEnvironment()
+	var env *environment.Environment = environment.NewEnvironment()
+
 	native.SetupEnvironment(env)
+
 	env.ModuleName = file
 	env.ImportChain[file] = true
 
@@ -47,6 +39,16 @@ func main() {
 	// fmt.Println("Eval time: ", evalTime, "ms")
 }
 
-func Test() {
+func GetFileName() string {
+	args := os.Args
 
+	var file string = "main"
+
+	if len(args) > 1 {
+		file = args[1]
+	} else {
+		panic("Please specify a file")
+	}
+
+	return file
 }

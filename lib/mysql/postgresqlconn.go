@@ -25,11 +25,11 @@ func (p PostgreSQLConnection) GetString() string {
 	return "Postgres Connection object"
 }
 
-func (db PostgreSQLConnection) GetProp(v *values.RuntimeValue, name string) (values.RuntimeValue, error) {
+func (db *PostgreSQLConnection) GetProp(name string) (values.RuntimeValue, error) {
 	props := map[string]values.RuntimeValue{}
 
 	props["ping"] = values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
-		val := (*v).(*PostgreSQLConnection)
+		val := db
 
 		err := val.Value.Ping()
 
@@ -41,7 +41,7 @@ func (db PostgreSQLConnection) GetProp(v *values.RuntimeValue, name string) (val
 	}}
 
 	props["close"] = values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
-		val := (*v).(*PostgreSQLConnection)
+		val := db
 		val.Value.Close()
 
 		return values.BoolValue{Value: true}

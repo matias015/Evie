@@ -880,7 +880,7 @@ func (p *Parser) ParseMemberExp() Exp {
 			n := MemberExpNode{}
 			n.Line = line
 			n.Left = left
-			n.Member = IdentifierNode{Value: p.t.Eat().Lexeme}
+			n.Member = p.t.Eat().Lexeme
 			left = n
 
 			if p.t.Get().Lexeme == "(" {
@@ -901,7 +901,7 @@ func (p *Parser) ParseMemberExp() Exp {
 					sliceNode := SliceExpNode{}
 					sliceNode.Line = line
 					sliceNode.Left = left
-					sliceNode.From = NumberNode{Value: "0"}
+					sliceNode.From = NumberNode{Value: 0}
 					sliceNode.To = p.ParseExp()
 					left = sliceNode
 
@@ -1052,7 +1052,8 @@ func (p *Parser) parsePrimaryExp() Exp {
 	if token.Kind == lexer.TOKEN_IDENTIFIER {
 		return IdentifierNode{Value: token.Lexeme, Line: token.Line}
 	} else if token.Kind == lexer.TOKEN_NUMBER {
-		return NumberNode{Value: token.Lexeme, Line: token.Line}
+		f64, _ := strconv.ParseFloat(token.Lexeme, 64)
+		return NumberNode{Value: f64, Line: token.Line}
 	} else if token.Kind == lexer.TOKEN_NOTHING {
 		return NothingNode{Line: token.Line}
 	} else if token.Kind == lexer.TOKEN_STRING {

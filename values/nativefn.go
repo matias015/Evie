@@ -18,6 +18,6 @@ func (a NativeFunctionValue) GetBool() bool {
 func (a NativeFunctionValue) GetType() ValueType {
 	return NativeFunctionType
 }
-func (nfn NativeFunctionValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (nfn NativeFunctionValue) GetProp(name string) (RuntimeValue, error) {
 	return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 }

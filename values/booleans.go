@@ -24,6 +24,6 @@ func (a BoolValue) GetNumber() float64 {
 func (a BoolValue) GetType() ValueType {
 	return BoolType
 }
-func (b BoolValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (b BoolValue) GetProp(name string) (RuntimeValue, error) {
 	return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 }

@@ -20,6 +20,6 @@ func (a StructValue) GetBool() bool {
 func (a StructValue) GetType() ValueType {
 	return StructType
 }
-func (s StructValue) GetProp(v *RuntimeValue, name string) (RuntimeValue, error) {
+func (s StructValue) GetProp(name string) (RuntimeValue, error) {
 	return NothingValue{}, fmt.Errorf("property %s does not exists", name)
 }
