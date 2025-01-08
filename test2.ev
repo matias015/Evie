@@ -1,5 +1,5 @@
 
-var init = time()
+//var init = time()
 
 
 var list = []
@@ -10,7 +10,7 @@ var i = 0
 
 loop{
 	list.add(i)
-	list.len()
+	list.test
 	i=i+1
 	if i > 999999{
 		break
@@ -20,7 +20,7 @@ loop{
 i=0
 loop{
 	list2.add(i)
-	list.len()
+	list.test
 	i=i+1
 	if i > 999999{
 		break
@@ -29,6 +29,6 @@ loop{
 
 
 
-var end = time()
+//var end = time()
 
-print("Total time: ", (end-init)/1000, " seg")
+//print("Total time: ", end-init, " ms")

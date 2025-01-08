@@ -1,5 +1,9 @@
 package values
 
+import (
+	"fmt"
+)
+
 type ObjectValue struct {
 	Struct StructValue
 	Value  map[string]RuntimeValue
@@ -41,8 +45,14 @@ func (a *ObjectValue) GetProp(prop string) (RuntimeValue, error) {
 		}, nil
 	}
 	propValue, exists := a.Value[prop]
+
 	if !exists {
-		propValue = a.Struct.Methods[prop]
+		propValue, metExists := a.Struct.Methods[prop]
+
+		if !metExists {
+			return NothingValue{}, fmt.Errorf("property %s does not exists", prop)
+		}
+
 		switch propValue.GetType() {
 		case NativeFunctionType:
 			fn := propValue.(NativeFunctionValue)

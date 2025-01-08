@@ -1,10 +1,13 @@
 package environment
 
 import (
+	"evie/profil"
 	"evie/values"
 	"fmt"
 	"sync"
 )
+
+var timer *profil.Timer = profil.ObtenerInstancia()
 
 var mapPool = sync.Pool{
 	New: func() interface{} {
@@ -28,41 +31,51 @@ type Environment struct {
 }
 
 func (e *Environment) PushScope() {
+	//init := timer.Init()
 	e.Variables = append(e.Variables, e.GetFromPool())
 	e.ScopeCount++
+	// timer.Add("creating_scope", init)
 }
 
 func (e *Environment) ExitScope() {
+	//init := timer.Init()
 	last := e.GetCurrentScope()
 	e.PutToPool(last)
 	e.Variables = e.Variables[:e.GetCurrentScopeCount()]
 	e.ScopeCount--
+	// timer.Add("destroying_scope", init)
 }
 
 // Declares a variable
 func (e *Environment) DeclareVar(name string, value values.RuntimeValue) error {
+	//init := timer.Init()
 	currentScope := e.GetCurrentScope()
 
 	if _, exists := currentScope[name]; exists {
 		return fmt.Errorf("variable '%s' already declared", name)
 	}
 	currentScope[name] = value
+	// timer.Add("env_declare", init)
 	return nil
 }
 
 // Returns the value of a variable
 func (e *Environment) GetVar(name string) (values.RuntimeValue, error) {
 
+	//init := timer.Init()
 	for i := e.GetCurrentScopeCount(); i >= 0; i-- {
 		if val, exists := e.Variables[i][name]; exists {
 			return val, nil
 		}
 	}
+	// timer.Add("env_lookup", init)
 	return values.NothingValue{}, fmt.Errorf("variable '%s' not found", name)
 }
 
 func (e *Environment) ForceDeclare(name string, value values.RuntimeValue) {
+	// //init := timer.Init()
 	e.Variables[e.GetCurrentScopeCount()][name] = value
+	// timer.Add("env_declare", init)
 }
 
 // Assigns a value to a variable

@@ -7,10 +7,14 @@ import (
 	"evie/native"
 	"evie/parser"
 	"evie/utils"
+	"fmt"
 	"os"
+	"time"
 )
 
 func main() {
+
+	// timer := profil.ObtenerInstancia()
 
 	file := GetFileName()
 
@@ -18,25 +22,18 @@ func main() {
 
 	tokens := lexer.Tokenize(source)
 
-	// litter.Dump(tokens)
-	// os.Exit(1)
 	ast := parser.NewParser(tokens).GetAST()
-	// litter.Dump(ast)
-	// os.Exit(1)
 
-	var env *environment.Environment = environment.NewEnvironment()
+	var env *environment.Environment = SetupInitialEnv(file)
 
-	native.SetupEnvironment(env)
+	start := time.Now()
 
-	env.ModuleName = file
-	env.ImportChain[file] = true
-
-	// start := time.Now()
 	intr := evruntime.Evaluator{Nodes: ast}
 	intr.Evaluate(env)
-	// evalTime := time.Since(start).Microseconds()
 
-	// fmt.Println("Eval time: ", evalTime, "ms")
+	fmt.Println("\nEval time: ", time.Since(start).Microseconds()/1000, "ms")
+	// timer.Display()
+
 }
 
 func GetFileName() string {
@@ -51,4 +48,14 @@ func GetFileName() string {
 	}
 
 	return file
+}
+
+func SetupInitialEnv(file string) *environment.Environment {
+	var env *environment.Environment = environment.NewEnvironment()
+
+	native.SetupEnvironment(env)
+
+	env.ModuleName = file
+	env.ImportChain[file] = true
+	return env
 }

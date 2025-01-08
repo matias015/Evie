@@ -7,6 +7,7 @@ import (
 	"evie/lib"
 	"evie/native"
 	"evie/parser"
+	"evie/profil"
 	"evie/utils"
 	"evie/values"
 	"fmt"
@@ -14,15 +15,18 @@ import (
 	"strconv"
 )
 
+var timer *profil.Timer = profil.ObtenerInstancia()
+
 type Evaluator struct {
 	Nodes     []parser.Stmt
 	CallStack []string
 }
 
 // Takes an AST and evaluates it, Node by node
-func (e *Evaluator) Evaluate(env *environment.Environment) *environment.Environment {
+func (e Evaluator) Evaluate(env *environment.Environment) *environment.Environment {
 
 	for _, node := range e.Nodes {
+
 		ret := e.EvaluateStmt(node, env)
 
 		// If the return value is an ErrorValue
@@ -43,6 +47,9 @@ func (e Evaluator) EvaluateStmt(n parser.Stmt, env *environment.Environment) val
 	case parser.NodeVarDeclaration:
 		return e.EvaluateVarDeclaration(n.(parser.VarDeclarationNode), env)
 	case parser.NodeIfStatement:
+		//init := timer.Init()
+
+		//timer.add("if_stmt", init)
 		return e.EvaluateIfStmt(n.(parser.IfStatementNode), env)
 	case parser.NodeForInStatement:
 		return e.EvaluateForInStmt(n.(parser.ForInSatementNode), env)
@@ -138,7 +145,7 @@ func (e Evaluator) EvaluateLoopStmt(node parser.LoopStmtNode, env *environment.E
 				return ret
 			} else if t == values.BreakType {
 				env.ExitScope()
-				return values.BoolValue{Value: true}
+				return values.NothingValue{}
 			} else if t == values.ContinueType {
 				break
 			}
@@ -376,6 +383,9 @@ func (e Evaluator) EvaluateFunctionDeclarationStmt(node parser.FunctionDeclarati
 // IF STMT
 func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.Environment) values.RuntimeValue {
 
+	// litter.Dump(node)
+	// os.Exit(1)
+
 	evaluatedExp := e.EvaluateExpression(node.Condition, env)
 
 	if evaluatedExp.GetType() == values.ErrorType {
@@ -389,7 +399,6 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 	}
 
 	if value == true {
-
 		env.PushScope()
 
 		for _, stmt := range node.Body {
@@ -404,12 +413,12 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 			}
 
 		}
+		env.ExitScope()
 	} else {
 
-		matched := false
+		// matched := false
 
-		if node.ElseIf != nil {
-
+		if len(node.ElseIf) > 0 {
 			for _, elseif := range node.ElseIf {
 
 				exp := e.EvaluateExpression(elseif.Condition, env)
@@ -426,7 +435,7 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 
 				if value == true {
 
-					matched = true
+					// matched = true
 
 					env.PushScope()
 
@@ -445,7 +454,8 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 			}
 		}
 
-		if node.ElseBody != nil && matched == false {
+		// if node.ElseBody != nil && matched == false {
+		if node.ElseBody != nil {
 			env.PushScope()
 			for _, stmt := range node.ElseBody {
 
@@ -459,7 +469,7 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 		}
 	}
 
-	return values.BoolValue{Value: true}
+	return values.NothingValue{}
 }
 
 // Evaluate a single Expression Statement
@@ -484,8 +494,6 @@ func (e Evaluator) EvaluateVarDeclaration(node parser.VarDeclarationNode, env *e
 	if parsedtype == values.ErrorType {
 		return parsed
 	}
-	// TODO
-	// copy() native function to make copies of complex values
 
 	err := env.DeclareVar(identifier.Value, parsed)
 
@@ -493,7 +501,7 @@ func (e Evaluator) EvaluateVarDeclaration(node parser.VarDeclarationNode, env *e
 		return e.Panic(values.RuntimeError, err.Error(), node.Line, env)
 	}
 
-	return values.BoolValue{Value: true}
+	return values.NothingValue{}
 }
 
 // Evaluate an expression
@@ -502,11 +510,20 @@ func (e Evaluator) EvaluateExpression(n parser.Exp, env *environment.Environment
 	switch n.ExpType() {
 
 	case parser.NodeBinaryExp:
+		// init := timer.Init()
+		// v := e.EvaluateBinaryExpression(n.(parser.BinaryExpNode), env)
+		// timer.Add("bin_exp", init)
 		return e.EvaluateBinaryExpression(n.(parser.BinaryExpNode), env)
 	case parser.NodeBinaryComparisonExp:
-		return e.EvaluateBinaryComparisonExpression(n.(parser.BinaryComparisonExpNode), env)
+		// init := timer.Init()
+		v := e.EvaluateBinaryComparisonExpression(n.(parser.BinaryComparisonExpNode), env)
+		// timer.Add("bin_exp", init)
+		return v
 	case parser.NodeBinaryLogicExp:
-		return e.EvaluateBinaryLogicExpression(n.(parser.BinaryLogicExpNode), env)
+		// init := timer.Init()
+		v := e.EvaluateBinaryLogicExpression(n.(parser.BinaryLogicExpNode), env)
+		// timer.Add("bin_exp", init)
+		return v
 	case parser.NodeTernaryExp:
 		return e.EvaluateTernaryExpression(n.(parser.TernaryExpNode), env)
 	case parser.NodeNumber:
@@ -697,8 +714,9 @@ func (e Evaluator) EvaluateMemberExpression(node parser.MemberExpNode, env *envi
 	if varValue.GetType() == values.ErrorType {
 		return varValue
 	}
-
+	//init := timer.Init()
 	fn, err := varValue.GetProp(node.Member)
+	//timer.add("get_prop", init)
 
 	if err != nil {
 		return e.Panic(values.RuntimeError, err.Error(), node.Line, env)
@@ -852,6 +870,7 @@ func (e Evaluator) EvaluateArrayExpression(node parser.ArrayExpNode, env *enviro
 
 func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environment.Environment) values.RuntimeValue {
 
+	//init := timer.Init()
 	evaluatedArgs := make([]values.RuntimeValue, 0, len(node.Args))
 
 	for _, arg := range node.Args {
@@ -863,7 +882,11 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 
 	}
 
+	//timer.add("evaluate_args", init)
+
+	//init = timer.Init()
 	calle := e.EvaluateExpression(node.Name, env)
+	//timer.add("eval_calee", init)
 
 	if calle.GetType() == values.ErrorType {
 		return calle
@@ -872,6 +895,7 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 	switch calle.GetType() {
 
 	case values.NativeFunctionType:
+		//init := timer.Init()
 
 		val := calle.(values.NativeFunctionValue).Value(evaluatedArgs)
 
@@ -879,10 +903,10 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 			return e.Panic(val.(values.ErrorValue).ErrorType, val.GetString(), node.Line, env)
 		}
 
+		//timer.add("native_fn", init)
 		return val
-
 	case values.FunctionType:
-
+		//init := timer.Init()
 		fn := calle.(values.FunctionValue)
 
 		fnEnv := fn.Environment.(*environment.Environment)
@@ -897,8 +921,8 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 		if fn.Struct != "" {
 			fnEnv.ForceDeclare("this", fn.StructObjRef)
 		}
-
 		var result values.RuntimeValue
+		// timer.Add("fn_pre_exec", init)
 
 		for _, stmt := range fn.Body {
 			result = e.EvaluateStmt(stmt, fnEnv)
@@ -983,14 +1007,6 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 			val.(*values.DictionaryValue).Value[key.GetString()] = right
 		}
 
-		// chain := e.ResolveIndexAccessChain(left.(parser.IndexAccessExpNode), env)
-		// _, err := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
-
-		// if err != nil {
-		// 	return e.Panic(values.RuntimeError,err.Error(), node.Line, env)
-		// }
-
-		// return right
 	} else if left.ExpType() == parser.NodeMemberExp {
 		expNode := left.(parser.MemberExpNode)
 		val := e.EvaluateExpression(expNode.Left, env)
@@ -1005,14 +1021,6 @@ func (e Evaluator) EvaluateAssignmentExpression(node parser.AssignmentNode, env 
 
 		val.(*values.ObjectValue).Value[expNode.Member] = right
 
-		// chain := e.ResolveIndexAccessChain(left.(parser.IndexAccessExpNode), env)
-		// _, err := env.ModifyIndexValue(left.(parser.IndexAccessExpNode), right, chain)
-
-		// if err != nil {
-		// 	return e.Panic(values.RuntimeError,err.Error(), node.Line, env)
-		// }
-
-		// return right
 	} else if left.ExpType() == parser.NodeIdentifier {
 		err := env.SetVar(left.(parser.IdentifierNode).Value, right)
 
@@ -1049,13 +1057,13 @@ func (e Evaluator) EvaluateBinaryExpression(node parser.BinaryExpNode, env *envi
 
 	if node.Operator == parser.OperatorAdd {
 
-		if type1 == values.StringType {
+		if type1 == values.NumberType {
+			// val := left.(values.NumberValue)
+			// val.Value = val.Value + right.(values.NumberValue).Value
+			// return val
+			return values.NumberValue{Value: left.GetNumber() + right.GetNumber()}
+		} else if type1 == values.StringType {
 			return values.StringValue{Value: left.(values.StringValue).Value + right.(values.StringValue).Value}
-		} else if type1 == values.NumberType {
-			val := left.(values.NumberValue)
-			val.Value = val.Value + right.(values.NumberValue).Value
-			return val
-			// return values.NumberValue{Value: left.GetNumber() + right.GetNumber()}
 		} else {
 			return e.Panic(values.RuntimeError, "Cant use operator + with type "+type1.String(), node.Line, env)
 		}
@@ -1302,6 +1310,7 @@ func (e Evaluator) ExecuteCallback(fn interface{}, args []interface{}) interface
 }
 
 func (e *Evaluator) AddToCallStack(line int, env *environment.Environment) {
+
 	e.CallStack = append(e.CallStack, strconv.Itoa(line)+" "+env.ModuleName)
 }
 

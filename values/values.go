@@ -19,6 +19,7 @@ const (
 	ObjectType
 	NamespaceType
 	FileType
+	NativeMethodType
 	CustomType
 )
 
