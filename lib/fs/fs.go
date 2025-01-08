@@ -25,7 +25,7 @@ func Load(env *environment.Environment) {
 	methods["open"] = values.NativeFunctionValue{Value: OpenFile}
 	methods["exists"] = values.NativeFunctionValue{Value: FileExists}
 	methods["remove"] = values.NativeFunctionValue{Value: RemoveFile}
-	// methods["create"] = values.NativeFunctionValue{Value: CreateFile}
+	methods["create"] = values.NativeFunctionValue{Value: CreateFile}
 
 	methods["createDir"] = values.NativeFunctionValue{Value: CreateDir}
 	methods["existsDir"] = values.NativeFunctionValue{Value: FileExistsDir}
@@ -96,7 +96,7 @@ func CreateFile(args []values.RuntimeValue) values.RuntimeValue {
 	if err != nil {
 		return values.ErrorValue{Value: err.Error()}
 	}
-	return &FileValue{Value: file}
+	return &FileValue{Value: file, Closed: false, Scanner: bufio.NewScanner(file)}
 }
 
 // Directory
