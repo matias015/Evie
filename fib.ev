@@ -1,6 +1,4 @@
 
-//var init = time()
-
 fn fib(n) {
     if n <= 1 { 
         return n    
@@ -13,8 +11,3 @@ fn fib2(n) {
 }
 
 print(fib(33))
-
-
-//var end = time()
-
-//print("Total time: ", (end-init)/1000, " seg")

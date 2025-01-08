@@ -165,7 +165,7 @@ func StringSlice(s StringValue) func([]RuntimeValue) RuntimeValue {
 				from = length + from
 			}
 			if from >= length || to >= length || from > to {
-				return ErrorValue{ErrorType: RuntimeError, Value: "Index out of range [" + strconv.Itoa(from) + ":" + strconv.Itoa(to) + "]"}
+				return ErrorValue{ErrorType: RuntimeError, Value: "Index out of range [" + strconv.Itoa(from) + ":" + strconv.Itoa(to) + "] In string with length " + strconv.Itoa(length)}
 			}
 			return StringValue{Value: s.Value[from:to]}
 		} else if len(args) == 1 {
@@ -177,7 +177,7 @@ func StringSlice(s StringValue) func([]RuntimeValue) RuntimeValue {
 				from = length + from
 			}
 			if from >= length {
-				return ErrorValue{ErrorType: RuntimeError, Value: "Index out of range [" + strconv.Itoa(from) + "]"}
+				return ErrorValue{ErrorType: RuntimeError, Value: "Index out of range [" + strconv.Itoa(from) + "] In string with length " + strconv.Itoa(length)}
 			}
 			return StringValue{Value: s.Value[from:]}
 		} else {

@@ -10,7 +10,7 @@ var i = 0
 
 loop{
 	list.add(i)
-	list.test
+	list.len
 	i=i+1
 	if i > 999999{
 		break
@@ -20,7 +20,7 @@ loop{
 i=0
 loop{
 	list2.add(i)
-	list.test
+	list.len
 	i=i+1
 	if i > 999999{
 		break

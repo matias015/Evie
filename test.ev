@@ -1,9 +1,8 @@
-fn second(){
-	print(2)
-}
-fn main(){
-	second()
+struct Person{
+	name
+	age
 }
 
+var p = Person{}
 
-main()
+print(type(p))

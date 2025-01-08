@@ -11,39 +11,22 @@ var timer *profil.Timer = profil.ObtenerInstancia()
 
 var mapPool = sync.Pool{
 	New: func() interface{} {
-		return make(map[string]values.RuntimeValue)
+		return Environment{}
 	},
 }
 
 type Environment struct {
 
 	// Variables is a map of variable names to their values
-	Variables []map[string]values.RuntimeValue
+	Variables map[string]values.RuntimeValue
 
-	//
-	ScopeCount int
+	Parent *Environment
 
 	// keep tracking of imports flow to avoid circular imports
 	ImportChain map[string]bool
 
 	// Module Name
 	ModuleName string
-}
-
-func (e *Environment) PushScope() {
-	//init := timer.Init()
-	e.Variables = append(e.Variables, e.GetFromPool())
-	e.ScopeCount++
-	// timer.Add("creating_scope", init)
-}
-
-func (e *Environment) ExitScope() {
-	//init := timer.Init()
-	last := e.GetCurrentScope()
-	e.PutToPool(last)
-	e.Variables = e.Variables[:e.GetCurrentScopeCount()]
-	e.ScopeCount--
-	// timer.Add("destroying_scope", init)
 }
 
 // Declares a variable
@@ -63,29 +46,51 @@ func (e *Environment) DeclareVar(name string, value values.RuntimeValue) error {
 func (e *Environment) GetVar(name string) (values.RuntimeValue, error) {
 
 	//init := timer.Init()
-	for i := e.GetCurrentScopeCount(); i >= 0; i-- {
-		if val, exists := e.Variables[i][name]; exists {
-			return val, nil
-		}
+
+	if val, exists := e.Variables[name]; exists {
+		return val, nil
 	}
+
+	if e.Parent != nil {
+		return e.Parent.GetVar(name)
+	}
+
 	// timer.Add("env_lookup", init)
 	return values.NothingValue{}, fmt.Errorf("variable '%s' not found", name)
 }
 
+func (e *Environment) CheckVarExists(name string) bool {
+
+	_, exists := e.Variables[name]
+
+	if exists {
+		return true
+	}
+
+	if e.Parent != nil {
+		return e.Parent.CheckVarExists(name)
+	}
+
+	return false
+}
+
 func (e *Environment) ForceDeclare(name string, value values.RuntimeValue) {
 	// //init := timer.Init()
-	e.Variables[e.GetCurrentScopeCount()][name] = value
+	e.Variables[name] = value
 	// timer.Add("env_declare", init)
 }
 
 // Assigns a value to a variable
 func (e *Environment) SetVar(name string, value values.RuntimeValue) error {
 
-	for i := e.GetCurrentScopeCount(); i >= 0; i-- { // Recorre desde el último alcance
-		scope := e.Variables[i]
-		if _, exists := scope[name]; exists {
-			scope[name] = value // Actualiza el valor
-			return nil          // Operación exitosa
+	_, ex := e.Variables[name]
+
+	if ex {
+		e.Variables[name] = value
+		return nil
+	} else {
+		if e.Parent != nil {
+			return e.Parent.SetVar(name, value)
 		}
 	}
 
@@ -93,21 +98,15 @@ func (e *Environment) SetVar(name string, value values.RuntimeValue) error {
 
 }
 
-func (e *Environment) GetFromPool() map[string]values.RuntimeValue {
-	return mapPool.Get().(map[string]values.RuntimeValue)
-}
-
-func (e *Environment) PutToPool(last map[string]values.RuntimeValue) {
-	for k := range last {
-		delete(last, k)
-	}
-
-	mapPool.Put(last)
-}
 func (e *Environment) GetCurrentScope() map[string]values.RuntimeValue {
-	return e.Variables[e.ScopeCount]
+	return e.Variables
 }
 
-func (e *Environment) GetCurrentScopeCount() int {
-	return e.ScopeCount
+func NewScopeEnv(parent *Environment, size int) *Environment {
+	return &Environment{
+		Parent:      parent,
+		Variables:   make(map[string]values.RuntimeValue, size),
+		ImportChain: parent.ImportChain,
+		ModuleName:  parent.ModuleName,
+	}
 }

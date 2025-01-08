@@ -1032,14 +1032,14 @@ func (p *Parser) parseUnaryExp() Exp {
 		n := UnaryExpNode{}
 		n.Line = op.Line
 		n.Operator = op.Lexeme
-		n.Right = p.parseUnaryExp()
+		n.Right = p.ParseExp()
 		return n
 	} else if p.t.Get().Lexeme == "not" {
 		op := p.t.Eat()
 		n := UnaryExpNode{}
 		n.Line = op.Line
 		n.Operator = op.Lexeme
-		n.Right = p.parseUnaryExp()
+		n.Right = p.ParseExp()
 		return n
 	}
 	return p.parsePrimaryExp()
@@ -1090,7 +1090,7 @@ func (p *Parser) ParseCallExpr(member Exp) Exp {
 	node.Line = p.t.Get().Line
 
 	if member.ExpType() != NodeIdentifier && member.ExpType() != NodeMemberExp {
-		Stop("Expected identifier in call expression in line " + fmt.Sprint(p.t.Get().Line))
+		Stop("Expected identifier in call expression in line " + fmt.Sprint(p.t.Get().Line) + " but found ")
 	}
 
 	node.Name = member

@@ -15,8 +15,6 @@ import (
 
 func SetupEnvironment(env *environment.Environment) {
 
-	env.PushScope()
-
 	env.ForceDeclare("RuntimeError", values.StringValue{Value: "RuntimeError"})
 	env.ForceDeclare("TypeError", values.StringValue{Value: "TypeError"})
 	env.ForceDeclare("InvalidIndexError", values.StringValue{Value: "InvalidIndexError"})
@@ -215,6 +213,9 @@ func PrintStdOut(args []values.RuntimeValue) values.RuntimeValue {
 func Type(args []values.RuntimeValue) values.RuntimeValue {
 	if len(args) == 0 {
 		return values.ErrorValue{Value: "Missing argument for type function"}
+	}
+	if args[0].GetType() == values.ObjectType {
+		return values.StringValue{Value: args[0].(*values.ObjectValue).Struct.Name}
 	}
 	return values.StringValue{Value: args[0].GetType().String()}
 }
