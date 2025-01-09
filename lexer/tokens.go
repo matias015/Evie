@@ -84,24 +84,28 @@ var tokenTypeLookUp = map[TokenType]string{
 	TOKEN_NUMBER:   "number",
 	TOKEN_STRING:   "string",
 	TOKEN_BOOLEAN:  "boolean",
-	TOKEN_LBRACKET: "lbracket",
-	TOKEN_RBRACKET: "rbracket",
-	TOKEN_RBRACE:   "rbrace",
-	TOKEN_LBRACE:   "lbrace",
-	TOKEN_LPAR:     "lpar",
-	TOKEN_RPAR:     "rpar",
-	TOKEN_COMMA:    "comma",
-	TOKEN_COLON:    "colon",
-	TOKEN_TERNARY:  "ternary",
-	TOKEN_DOT:      "dot",
-	TOKEN_LARROW:   "larrow",
+	TOKEN_LBRACKET: "[",
+	TOKEN_RBRACKET: "]",
+	TOKEN_RBRACE:   "}",
+	TOKEN_LBRACE:   "{",
+	TOKEN_LPAR:     "(",
+	TOKEN_RPAR:     ")",
+	TOKEN_COMMA:    ",",
+	TOKEN_COLON:    ":",
+	TOKEN_TERNARY:  "?",
+	TOKEN_DOT:      ".",
+	TOKEN_LARROW:   "->",
 	TOKEN_OPERATOR: "operator",
-	TOKEN_ASSIGN:   "assign",
+	TOKEN_ASSIGN:   "=",
 	TOKEN_EOF:      "eof",
 	TOKEN_EOL:      "eol",
 	TOKEN_INIT:     "init",
 }
 
 func GetTokenName(tokenType TokenType) string {
+	return tokenTypeLookUp[tokenType]
+}
+
+func (tokenType TokenType) String() string {
 	return tokenTypeLookUp[tokenType]
 }
