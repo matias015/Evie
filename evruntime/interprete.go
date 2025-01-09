@@ -7,15 +7,12 @@ import (
 	"evie/lib"
 	"evie/native"
 	"evie/parser"
-	"evie/profil"
 	"evie/utils"
 	"evie/values"
 	"fmt"
 	"os"
 	"strconv"
 )
-
-var timer *profil.Timer = profil.ObtenerInstancia()
 
 type Evaluator struct {
 	Nodes     []parser.Stmt
@@ -210,7 +207,15 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 
 func (e Evaluator) EvaluateFinallyBlock(stmt []parser.Stmt, env *environment.Environment) values.RuntimeValue {
 
-	fmt.Println("Ejecutando finally")
+	scope := environment.NewScopeEnv(env, 0)
+
+	for _, stmt := range stmt {
+		res := e.EvaluateStmt(stmt, scope)
+
+		if res.GetType() == values.ErrorType {
+			return res
+		}
+	}
 
 	return values.NothingValue{}
 
