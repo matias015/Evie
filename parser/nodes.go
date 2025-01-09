@@ -58,13 +58,51 @@ const (
 	NodeReturnStatement
 	NodeBreakStatement
 	NodeContinueStatement
-	NodeTryCatch
 	NodeStructMethodDeclaration
 	NodeTryCatchStatement
 	NodeImportStatement
 	NodeBinaryComparisonExp
 	NodeBinaryLogicExp
 )
+
+var NodeTypeStringLookup = map[NodeType]string{
+	NodeIdentifier:              "Identifier",
+	NodeMemberExp:               "Member expression",
+	NodeIndexAccessExp:          "Index access expression",
+	NodeExpStmt:                 "Expression statement",
+	NodeNumber:                  "Number",
+	NodeString:                  "String",
+	NodeBoolean:                 "Boolean",
+	NodeNothing:                 "Nothing",
+	NodeAssignment:              "Assignment",
+	NodeBinaryExp:               "Binary expression",
+	NodeUnaryExp:                "Unary expression",
+	NodeCallExp:                 "Call expression",
+	NodeArrayExp:                "Array expression",
+	NodeDictionaryExp:           "Dictionary expression",
+	NodeObjectInitExp:           "Object expression",
+	NodeSliceExp:                "Slice expression",
+	NodeTernaryExp:              "Ternary expression",
+	NodeBinaryComparisonExp:     "Binary expression",
+	NodeBinaryLogicExp:          "Binary expression",
+	NodeStructDeclaration:       "Declaration",
+	NodeVarDeclaration:          "Declaration",
+	NodeIfStatement:             "If statement",
+	NodeForInStatement:          "For statement",
+	NodeLoopStatement:           "Loop statement",
+	NodeFunctionDeclaration:     "Function declaration",
+	NodeAnonFunctionDeclaration: "Anon function declaration",
+	NodeReturnStatement:         "Return statement",
+	NodeBreakStatement:          "Break statement",
+	NodeContinueStatement:       "Continue statement",
+	NodeStructMethodDeclaration: "Struct method declaration",
+	NodeTryCatchStatement:       "Try statement",
+	NodeImportStatement:         "Import statement",
+}
+
+func (nt NodeType) String() string {
+	return NodeTypeStringLookup[nt]
+}
 
 // EXPRESIONES
 type ExpressionStmtNode struct {
