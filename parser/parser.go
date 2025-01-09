@@ -187,7 +187,7 @@ func (p *Parser) ParseTryStmt() TryCatchNode {
 	p.t.Eat()
 
 	if p.t.Eat().Kind != lexer.TOKEN_CATCH {
-		Stop("expected catch")
+		Stop("Expected catch after try statement in line " + fmt.Sprint(p.t.Get().Line))
 	} else {
 		p.t.Eat()
 	}
@@ -675,7 +675,7 @@ func (p *Parser) ParseTernaryExp() Exp {
 		n.Left = p.ParseDictionaryInitialization()
 
 		if p.t.Get().Lexeme != ":" {
-			Stop("Expected ':'")
+			Stop("Missing ':' inside ternary expression")
 		}
 		p.t.Eat()
 
@@ -906,7 +906,7 @@ func (p *Parser) ParseMemberExp() Exp {
 					left = sliceNode
 
 					if p.t.Get().Lexeme != "]" {
-						Stop("Expected ']'")
+						Stop("Expected ']' at the end of a slice expression at line " + fmt.Sprint(line))
 					}
 
 					p.t.Eat()
@@ -946,6 +946,11 @@ func (p *Parser) ParseMemberExp() Exp {
 		}
 	}
 
+	if p.t.Get().Lexeme == "(" {
+		return p.ParseCallExpr(left)
+	}
+	// litter.Dump(p.t.Get())
+
 	return left
 
 }
@@ -959,71 +964,6 @@ func (p *Parser) ParseCallMemberExp() Exp {
 
 	return member
 }
-
-// func (p *Parser) ParseIndexAccessExp() Exp {
-
-// 	left := p.parseUnaryExp()
-
-// 	for p.t.Get().Lexeme == "[" {
-
-// 		line := p.t.Eat().Line
-
-// 		if p.t.Get().Lexeme == ":" {
-// 			p.t.Eat()
-
-// 			if p.t.Get().Lexeme == "]" {
-// 				Stop("Empty slice expression at line " + fmt.Sprint(line))
-// 			}
-
-// 			sliceNode := SliceExpNode{}
-// 			sliceNode.Line = line
-// 			sliceNode.Left = left
-// 			sliceNode.From = NumberNode{Value: "0"}
-// 			sliceNode.To = p.ParseExp()
-// 			left = sliceNode
-
-// 			if p.t.Get().Lexeme != "]" {
-// 				Stop("Expected ']'")
-// 			}
-
-// 			p.t.Eat()
-
-// 			return left
-// 		}
-
-// 		index := p.ParseExp()
-
-// 		n := IndexAccessExpNode{}
-// 		n.Line = line
-// 		n.Left = left
-// 		n.Index = index
-
-// 		if p.t.Get().Lexeme == ":" {
-// 			p.t.Eat()
-// 			sliceNode := SliceExpNode{}
-// 			sliceNode.Line = line
-// 			sliceNode.Left = left
-// 			sliceNode.From = index
-// 			if p.t.Get().Lexeme == "]" {
-// 				sliceNode.To = nil
-// 			} else {
-// 				sliceNode.To = p.ParseExp()
-// 			}
-// 			left = sliceNode
-// 		} else {
-// 			left = n
-// 		}
-
-// 		if p.t.Get().Lexeme == "]" {
-// 			p.t.Eat()
-// 		} else {
-// 			Stop("Expected ']' at line " + fmt.Sprint(line))
-// 		}
-// 	}
-
-// 	return left
-
-// }
 
 func (p *Parser) parseUnaryExp() Exp {
 
@@ -1089,8 +1029,8 @@ func (p *Parser) ParseCallExpr(member Exp) Exp {
 	node := CallExpNode{}
 	node.Line = p.t.Get().Line
 
-	if member.ExpType() != NodeIdentifier && member.ExpType() != NodeMemberExp {
-		Stop("Expected identifier in call expression in line " + fmt.Sprint(p.t.Get().Line) + " but found ")
+	if member.ExpType() != NodeIdentifier && member.ExpType() != NodeMemberExp && member.ExpType() != NodeIndexAccessExp {
+		Stop(member.ExpType().String() + " is not callable at line: " + fmt.Sprint(p.t.Get().Line))
 	}
 
 	node.Name = member
