@@ -1,7 +1,7 @@
 package values
 
 import (
-	"evie/core"
+	"evie/common"
 	"evie/parser"
 	"fmt"
 )
@@ -12,7 +12,7 @@ type FunctionValue struct {
 	Body         []parser.Stmt
 	Parameters   []string
 	Environment  interface{}
-	Evaluator    core.Evaluator
+	Evaluator    common.Evaluator
 }
 
 func (a FunctionValue) GetNumber() float64 {

@@ -55,15 +55,15 @@ func SetupEnvironment(env *environment.Environment) {
 
 	env.DeclareVar("panic", values.NativeFunctionValue{Value: func(args []values.RuntimeValue) values.RuntimeValue {
 		if len(args) == 0 {
-			return values.ErrorValue{Value: "Why?"}
+			return values.ErrorValue{Value: "Why?", ErrorType: values.RuntimeError}
 		}
 		if args[0].GetType() == values.StringType {
-			return values.ErrorValue{Value: "Panic! -> " + args[0].GetString()}
+			return values.ErrorValue{Value: args[0].GetString(), ErrorType: values.RuntimeError}
 		} else if args[0].GetType() == values.ObjectType {
 			obj := args[0].(*values.ObjectValue)
 			return values.ErrorValue{Value: obj.Value["message"].GetString(), ErrorType: obj.Value["type"].GetString()}
 		} else {
-			return values.ErrorValue{Value: "Panic while trying to panic, because panic argument is not valid"}
+			return values.ErrorValue{ErrorType: values.RuntimeError, Value: "Panic while trying to panic, because panic argument is not valid"}
 		}
 	}})
 

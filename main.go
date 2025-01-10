@@ -1,28 +1,24 @@
 package main
 
 import (
+	"evie/common"
 	environment "evie/env"
 	"evie/evruntime"
 	"evie/lexer"
 	"evie/native"
 	"evie/parser"
-	"evie/utils"
 	"fmt"
 	"os"
 	"time"
 )
 
-func main() {
+func Init() {
 
 	// timer := profil.ObtenerInstancia()
 
 	file := GetFileName()
 
-	var source string = utils.ReadFile(utils.AddExtension(file))
-
-	tokens := lexer.Tokenize(source)
-
-	ast := parser.NewParser(tokens).GetAST()
+	ast := ParseContent(file)
 
 	var env *environment.Environment = SetupInitialEnv(file)
 
@@ -33,7 +29,14 @@ func main() {
 
 	fmt.Println("\nEval time: ", time.Since(start).Microseconds()/1000, "ms")
 	// timer.Display()
+}
 
+func ParseContent(file string) []parser.Stmt {
+	var source string = common.ReadFile(common.AddExtension(file))
+
+	tokens := lexer.Tokenize(source)
+
+	return parser.NewParser(tokens).GetAST()
 }
 
 func GetFileName() string {
@@ -50,12 +53,19 @@ func GetFileName() string {
 	return file
 }
 
-func SetupInitialEnv(file string) *environment.Environment {
+func SetupInitialEnv(moduleName string) *environment.Environment {
 	var env *environment.Environment = environment.NewEnvironment()
 
 	native.SetupEnvironment(env)
 
-	env.ModuleName = file
-	env.ImportChain[file] = true
+	env.ModuleName = moduleName
+	env.ImportChain[moduleName] = true
 	return env
+}
+
+func main() {
+
+	// Parse cl arguments
+
+	Init()
 }

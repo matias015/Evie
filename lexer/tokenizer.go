@@ -1,7 +1,7 @@
 package lexer
 
 import (
-	"evie/utils"
+	"evie/common"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,7 +12,7 @@ func Tokenize(input string) []Token {
 
 	characters := []rune(input)
 
-	t := utils.RuneIterator{
+	t := common.RuneIterator{
 		Items: characters,
 		Index: 0,
 	}

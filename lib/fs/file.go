@@ -7,14 +7,13 @@ import (
 )
 
 type FileValue struct {
-	Type    values.ValueType
 	Value   *os.File
 	Scanner *bufio.Scanner
 	Closed  bool
 }
 
 func (s FileValue) GetType() values.ValueType {
-	return s.Type
+	return values.FileType
 }
 func (a FileValue) GetNumber() float64 {
 	return 1

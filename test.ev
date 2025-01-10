@@ -1,8 +1,10 @@
-struct Person{
-	name
-	age
+
+
+fn main(n){
+	if n>0{
+		return main(n-1)
+	}
+	return n-1
 }
 
-var p = Person{}
-
-print(type(p))
+main(100000)

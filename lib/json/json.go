@@ -1,8 +1,8 @@
 package jsonLib
 
 import (
+	"evie/common"
 	environment "evie/env"
-	"evie/utils"
 	"evie/values"
 	"fmt"
 	"os"
@@ -56,13 +56,13 @@ func Decode(args []values.RuntimeValue) values.RuntimeValue {
 
 	raw := arg.(values.StringValue).Value
 
-	iter := utils.RuneIterator{Items: []rune(raw)}
+	iter := common.RuneIterator{Items: []rune(raw)}
 
 	return DecodeValue(&iter)
 
 }
 
-func DecodeValue(iter *utils.RuneIterator) values.RuntimeValue {
+func DecodeValue(iter *common.RuneIterator) values.RuntimeValue {
 
 	fmt.Println("VALUE TO DECODE VALUE: " + string(iter.Get()))
 
@@ -87,7 +87,7 @@ func DecodeValue(iter *utils.RuneIterator) values.RuntimeValue {
 	}
 }
 
-func DecodeSimpleValue(iter *utils.RuneIterator) values.RuntimeValue {
+func DecodeSimpleValue(iter *common.RuneIterator) values.RuntimeValue {
 
 	word := ""
 
@@ -115,7 +115,7 @@ func DecodeSimpleValue(iter *utils.RuneIterator) values.RuntimeValue {
 	return values.StringValue{Value: word}
 }
 
-func DecodeArray(iter *utils.RuneIterator) values.RuntimeValue {
+func DecodeArray(iter *common.RuneIterator) values.RuntimeValue {
 	arr := values.ArrayValue{Value: make([]values.RuntimeValue, 0)}
 
 	iter.Eat()
@@ -134,7 +134,7 @@ func DecodeArray(iter *utils.RuneIterator) values.RuntimeValue {
 	return &arr
 }
 
-func DecodeDictionary(iter *utils.RuneIterator) values.RuntimeValue {
+func DecodeDictionary(iter *common.RuneIterator) values.RuntimeValue {
 	output := values.DictionaryValue{Value: make(map[string]values.RuntimeValue, 0)}
 
 	key := ""

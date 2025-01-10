@@ -6,9 +6,6 @@ import (
 	"fmt"
 )
 
-func IsError(val values.RuntimeValue) bool {
-	return (val.GetType() == values.ErrorType)
-}
 func (e Evaluator) Panic(errorType string, msg string, line int, env *environment.Environment) values.ErrorValue {
 
 	errorStruct, _ := env.GetVar("ErrorObject")
@@ -22,8 +19,8 @@ func (e Evaluator) Panic(errorType string, msg string, line int, env *environmen
 
 	callStack := &values.ArrayValue{Value: make([]values.RuntimeValue, 0)}
 
-	for i := len(e.CallStack) - 1; i >= 0; i-- {
-		callStack.Value = append(callStack.Value, values.StringValue{Value: e.CallStack[i]})
+	for i := len(e.CallStack.Items) - 1; i >= 0; i-- {
+		callStack.Value = append(callStack.Value, values.StringValue{Value: e.CallStack.Items[i].String()})
 	}
 
 	errProperties["callstack"] = callStack
@@ -36,7 +33,7 @@ func (e Evaluator) Panic(errorType string, msg string, line int, env *environmen
 	}
 }
 
-func (e *Evaluator) PrintError(err values.ErrorValue) {
+func (e Evaluator) PrintError(err values.ErrorValue) {
 
 	errValue := err.Object
 
@@ -46,8 +43,8 @@ func (e *Evaluator) PrintError(err values.ErrorValue) {
 
 	if len(cstack) > 0 {
 		output += "\n >>> Detailed callstack:\n"
-		for i := len(cstack) - 1; i >= 0; i-- {
-			output += fmt.Sprintf("\t%s\n", cstack[i].GetString())
+		for _, item := range cstack {
+			output += fmt.Sprintf("\t%s\n", item.GetString())
 		}
 	}
 

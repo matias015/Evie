@@ -2,12 +2,12 @@ package evruntime
 
 import (
 	"errors"
+	"evie/common"
 	environment "evie/env"
 	"evie/lexer"
 	"evie/lib"
 	"evie/native"
 	"evie/parser"
-	"evie/utils"
 	"evie/values"
 	"fmt"
 	"os"
@@ -16,11 +16,13 @@ import (
 
 type Evaluator struct {
 	Nodes     []parser.Stmt
-	CallStack []string
+	CallStack CallStack
 }
 
 // Takes an AST and evaluates it, Node by node
 func (e Evaluator) Evaluate(env *environment.Environment) *environment.Environment {
+
+	e.CallStack = CallStack{Items: make([]CallStackItem, 0)}
 
 	for _, node := range e.Nodes {
 
@@ -45,9 +47,6 @@ func (e Evaluator) EvaluateStmt(n parser.Stmt, env *environment.Environment) val
 	case parser.NodeVarDeclaration:
 		return e.EvaluateVarDeclaration(n.(parser.VarDeclarationNode), env)
 	case parser.NodeIfStatement:
-		//init := timer.Init()
-
-		//timer.add("if_stmt", init)
 		return e.EvaluateIfStmt(n.(parser.IfStatementNode), env)
 	case parser.NodeForInStatement:
 		return e.EvaluateForInStmt(n.(parser.ForInSatementNode), env)
@@ -98,7 +97,7 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 		path := node.Path + ".ev"
 
 		// Read file, parse and evaluate
-		var source string = utils.ReadFile(path)
+		var source string = common.ReadFile(path)
 
 		tokens := lexer.Tokenize(source)
 		ast := parser.NewParser(tokens).GetAST()
@@ -115,11 +114,10 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 		// Get the created environment after evaluate the module
 		// Get all the variables loaded and load into the actual environment
 		// using a namespace
-		env.DeclareVar(node.Alias, values.NamespaceValue{Value: importEnv.Variables})
-
+		env.ForceDeclare(node.Alias, values.NamespaceValue{Value: importEnv.Variables})
 	}
 
-	return values.BoolValue{Value: true}
+	return values.NothingValue{}
 }
 
 // LOOP STATEMENT
@@ -169,7 +167,7 @@ func (e Evaluator) EvaluateTryCatchNode(node parser.TryCatchNode, env *environme
 
 		if ret.GetType() == values.ErrorType {
 
-			env.DeclareVar("error", ret.(values.ErrorValue).Object)
+			env.ForceDeclare("error", ret.(values.ErrorValue).Object)
 
 			// CATCH BODY
 			for _, cstmt := range catch {
@@ -921,7 +919,7 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 		fnEnv := environment.NewScopeEnv(fn.Environment.(*environment.Environment), len(node.Args))
 		// Create new environment
 
-		e.AddToCallStack(node.Line, env)
+		e.CallStack.Add(node.Line, env.ModuleName)
 
 		for index, arg := range evaluatedArgs {
 			fnEnv.ForceDeclare(fn.Parameters[index], arg)
@@ -937,20 +935,17 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 			result = e.EvaluateStmt(stmt, fnEnv)
 
 			if result.GetType() == values.ErrorType {
-
-				e.RemoveToCallStack()
+				e.CallStack.Remove()
 				return result
 			}
 
 			if result.GetType() == values.ReturnType {
-
-				e.RemoveToCallStack()
+				e.CallStack.Remove()
 				return result.(values.ReturnValue).Value
 			}
 
 		}
-
-		e.RemoveToCallStack()
+		e.CallStack.Remove()
 		return values.NothingValue{}
 
 	default:
@@ -1313,13 +1308,4 @@ func (e Evaluator) ExecuteCallback(fn interface{}, args []interface{}) interface
 
 	}
 	return nil
-}
-
-func (e *Evaluator) AddToCallStack(line int, env *environment.Environment) {
-
-	e.CallStack = append(e.CallStack, strconv.Itoa(line)+" "+env.ModuleName)
-}
-
-func (e *Evaluator) RemoveToCallStack() {
-	e.CallStack = e.CallStack[:len(e.CallStack)-1]
 }
