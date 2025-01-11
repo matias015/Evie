@@ -9,6 +9,8 @@ import (
 	"evie/parser"
 	"fmt"
 	"os"
+	"path"
+	"path/filepath"
 	"time"
 )
 
@@ -19,6 +21,8 @@ func Init() {
 	file := GetFileName()
 
 	ast := ParseContent(file)
+
+	ChangeWorkingDirectory(file)
 
 	var env *environment.Environment = SetupInitialEnv(file)
 
@@ -31,12 +35,36 @@ func Init() {
 	// timer.Display()
 }
 
+func ChangeWorkingDirectory(mainFileName string) bool {
+
+	cd, err := os.Getwd()
+
+	if err != nil {
+		fmt.Println("Error trying to get the actual working directory")
+	}
+
+	root := path.Dir(cd + string(filepath.Separator) + common.AddExtension(mainFileName))
+
+	err = os.Chdir(root)
+
+	if err != nil {
+		fmt.Println("Error setting up the root directory")
+		os.Exit(1)
+	}
+
+	cd, _ = os.Getwd()
+
+	return true
+}
+
 func ParseContent(file string) []parser.Stmt {
 	var source string = common.ReadFile(common.AddExtension(file))
 
 	tokens := lexer.Tokenize(source)
 
-	return parser.NewParser(tokens).GetAST()
+	ast := parser.NewParser(tokens).GetAST()
+
+	return ast
 }
 
 func GetFileName() string {

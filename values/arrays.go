@@ -58,6 +58,7 @@ func ArrayAddFirst(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
 		return BoolValue{Value: true}
 	}
 }
+
 func ArrayRemoveFirst(a *ArrayValue) func([]RuntimeValue) RuntimeValue {
 	return func(args []RuntimeValue) RuntimeValue {
 		if len(a.Value) == 0 {

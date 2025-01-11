@@ -1,0 +1,18 @@
+
+var MY_CUSTOM_ERROR = "MyCustomError"
+
+fn GenerateMyCustomError(){
+	var err = ErrorObject{
+		message: "Something went wrong",
+		type: MY_CUSTOM_ERROR
+	}
+
+	return err
+}
+
+var thereWasAnError = true
+
+if thereWasAnError{
+	var err = GenerateMyCustomError()
+	panic(err)
+}

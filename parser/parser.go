@@ -100,7 +100,7 @@ func (p *Parser) ParseImportStmt() ImportNode {
 
 	if p.t.Get().Kind == lexer.TOKEN_AS {
 		p.t.Eat()
-		if !p.t.HasNext() || p.t.GetNext().Kind != lexer.TOKEN_IDENTIFIER {
+		if p.t.Get().Kind != lexer.TOKEN_IDENTIFIER {
 			Stop("Expected identifier after 'as' in line " + fmt.Sprint(node.Line))
 		}
 		node.Alias = p.t.Eat().Lexeme

@@ -133,6 +133,102 @@ for item in items{
 loop {}
 
 ```
+## Capturing errors
+Capture errors with try - catch - finally statement.
+```
+try {
+	print("here will be an error")
+	print(x)
+}catch{
+	print(error.message)
+}finally{
+	print("This always be executed")
+}
+```
+In the catch block a variable called error will contain the error.
+
+## Getting the error type
+Use the type property of the error object to know what type of error we got.
+```
+try {
+	print("here will be an error")
+	print(x)
+}catch{
+	if error.type == IdentifierError {
+		print("THE VARIABLE DOES NOT EXISTS")
+	}else{
+    print("OTHER ERROR")
+  }
+}
+
+// Currently the list of available errors are
+RuntimeError
+TypeError
+InvalidIndexError
+IdentifierError
+ZeroDivisionError
+InvalidArgumentError
+InvalidConversionError
+CircularImportError
+PropertyError
+
+```
+In the catch block a variable called error will contain the error.
+
+You can build your own errors like this.
+
+```
+var MY_CUSTOM_ERROR = "MyCustomError"
+
+fn GenerateMyCustomError(){
+	var err = ErrorObject{
+		message: "Something went wrong",
+		type: MY_CUSTOM_ERROR
+	}
+
+	return err
+}
+
+var thereWasAnError = true
+
+if thereWasAnError{
+	var err = GenerateMyCustomError()
+	panic
+}
+```
+
+## Importing modules
+
+You can include other files or standard modules in the actual script with the 'import' keyword
+```
+// my_file.ev
+var MODULE_VALUE = "I just came from another file"
+
+// main.ev
+import my_file
+print(my_file.MODULE_VALUE)
+```
+When using slashes in the path, only the last word will be used for the namespace
+```
+// some_folde/my_file.ev
+var MODULE_VALUE = "I just came from another file"
+
+// main.ev
+import "some_folde/my_file"
+print(my_file.MODULE_VALUE)
+
+```
+You can use the 'as' keyword to define the namespace name for the module
+```
+// some_folde/my_file.ev
+var MODULE_VALUE = "I just came from another file"
+
+// main.ev
+import "some_folde/my_file" as MyModule
+print(MyModule.MODULE_VALUE)
+
+```
+
 
 ## Built In Methods
 ```

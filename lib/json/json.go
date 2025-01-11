@@ -10,6 +10,16 @@ import (
 	"unicode"
 )
 
+/*
+
+JSON LIB TODO:
+
+ -> Detect format error at parsin raw json to objects
+ -> Allow parse objects
+ -> Allow scape characters and specials, like \n
+
+*/
+
 func Load(env *environment.Environment) {
 	namespace := values.NamespaceValue{Value: make(map[string]values.RuntimeValue)}
 
@@ -64,8 +74,6 @@ func Decode(args []values.RuntimeValue) values.RuntimeValue {
 
 func DecodeValue(iter *common.RuneIterator) values.RuntimeValue {
 
-	fmt.Println("VALUE TO DECODE VALUE: " + string(iter.Get()))
-
 	for {
 		if iter.Get() != ' ' {
 			break
@@ -108,6 +116,20 @@ func DecodeSimpleValue(iter *common.RuneIterator) values.RuntimeValue {
 			}
 
 			return values.NumberValue{Value: parsed}
+		}
+
+		if iter.Get() == '"' {
+
+			iter.Eat()
+
+			for iter.HasNext() && iter.Get() != '"' {
+				word += string(iter.Eat())
+			}
+
+			iter.Eat()
+
+			return values.StringValue{Value: word}
+
 		}
 
 		iter.Eat()

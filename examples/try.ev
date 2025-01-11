@@ -1,0 +1,22 @@
+
+try {
+	print("here will be an error")
+	print(x)
+}catch{
+	print(error.message)
+}finally{
+	print("This always be executed")
+}
+
+try {
+	print("here will be an error")
+	print(x)
+}catch{
+	
+	if error.type == IdentifierError {
+		print("THE VARIABLE DOES NOT EXISTS")
+	}
+	
+}finally{
+	print("This always be executed")
+}
