@@ -137,12 +137,12 @@ loop {}
 Capture errors with try - catch - finally statement.
 ```
 try {
-	print("here will be an error")
-	print(x)
+  print("here will be an error")
+  print(x)
 }catch{
-	print(error.message)
+  print(error.message)
 }finally{
-	print("This always be executed")
+  print("This always be executed")
 }
 ```
 In the catch block a variable called error will contain the error.
@@ -151,12 +151,12 @@ In the catch block a variable called error will contain the error.
 Use the type property of the error object to know what type of error we got.
 ```
 try {
-	print("here will be an error")
-	print(x)
+  print("here will be an error")
+  print(x)
 }catch{
-	if error.type == IdentifierError {
-		print("THE VARIABLE DOES NOT EXISTS")
-	}else{
+  if error.type == IdentifierError {
+    print("THE VARIABLE DOES NOT EXISTS")
+  }else{
     print("OTHER ERROR")
   }
 }
@@ -181,24 +181,22 @@ You can build your own errors like this.
 var MY_CUSTOM_ERROR = "MyCustomError"
 
 fn GenerateMyCustomError(){
-	var err = ErrorObject{
-		message: "Something went wrong",
-		type: MY_CUSTOM_ERROR
-	}
-
-	return err
+  var err = ErrorObject{
+    message: "Something went wrong",
+    type: MY_CUSTOM_ERROR
+  }
+  return err
 }
 
 var thereWasAnError = true
 
 if thereWasAnError{
-	var err = GenerateMyCustomError()
-	panic
+  var err = GenerateMyCustomError()
+  panic(err)
 }
 ```
 
 ## Importing modules
-
 You can include other files or standard modules in the actual script with the 'import' keyword
 ```
 // my_file.ev
