@@ -11,12 +11,14 @@ import (
 	"evie/values"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
 type Evaluator struct {
 	Nodes     []parser.Stmt
 	CallStack CallStack
+	RootPath  string
 }
 
 // Takes an AST and evaluates it, Node by node
@@ -97,7 +99,7 @@ func (e Evaluator) EvaluateImportNode(node parser.ImportNode, env *environment.E
 		path := node.Path + ".ev"
 
 		// Read file, parse and evaluate
-		var source string = common.ReadFile(path)
+		var source string = common.ReadFile(e.RootPath + string(filepath.Separator) + path)
 
 		tokens := lexer.Tokenize(source)
 		ast := parser.NewParser(tokens).GetAST()
@@ -401,7 +403,6 @@ func (e Evaluator) EvaluateIfStmt(node parser.IfStatementNode, env *environment.
 			t := result.GetType()
 
 			if t == values.ErrorType || t == values.ReturnType || t == values.BreakType || t == values.ContinueType {
-
 				return result
 			}
 
@@ -508,29 +509,12 @@ func (e Evaluator) EvaluateExpression(n parser.Exp, env *environment.Environment
 
 	switch n.ExpType() {
 
-	case parser.NodeBinaryExp:
-		// init := timer.Init()
-		// v := e.EvaluateBinaryExpression(n.(parser.BinaryExpNode), env)
-		// timer.Add("bin_exp", init)
-		return e.EvaluateBinaryExpression(n.(parser.BinaryExpNode), env)
-	case parser.NodeBinaryComparisonExp:
-		// init := timer.Init()
-		v := e.EvaluateBinaryComparisonExpression(n.(parser.BinaryComparisonExpNode), env)
-		// timer.Add("bin_exp", init)
-		return v
-	case parser.NodeBinaryLogicExp:
-		// init := timer.Init()
-		v := e.EvaluateBinaryLogicExpression(n.(parser.BinaryLogicExpNode), env)
-		// timer.Add("bin_exp", init)
-		return v
-	case parser.NodeTernaryExp:
-		return e.EvaluateTernaryExpression(n.(parser.TernaryExpNode), env)
 	case parser.NodeNumber:
 		return values.NumberValue{Value: n.(parser.NumberNode).Value}
-	case parser.NodeCallExp:
-		return e.EvaluateCallExpression(n.(parser.CallExpNode), env)
-	case parser.NodeAnonFunctionDeclaration:
-		return e.EvaluateAnonymousFunctionExpression(n.(parser.AnonFunctionDeclarationNode), env)
+	case parser.NodeString:
+		return values.StringValue{Value: n.(parser.StringNode).Value}
+	case parser.NodeBoolean:
+		return values.BoolValue{Value: n.(parser.BooleanNode).Value}
 	case parser.NodeIdentifier:
 		node := n.(parser.IdentifierNode)
 		lookup, err := env.GetVar(node.Value)
@@ -538,28 +522,36 @@ func (e Evaluator) EvaluateExpression(n parser.Exp, env *environment.Environment
 			return e.Panic(values.IdentifierError, err.Error(), node.Line, env)
 		}
 		return lookup
-	case parser.NodeUnaryExp:
-		return e.EvaluateUnaryExpression(n.(parser.UnaryExpNode), env)
-	case parser.NodeString:
-		return values.StringValue{Value: n.(parser.StringNode).Value}
 	case parser.NodeNothing:
 		return values.NothingValue{}
-	case parser.NodeIndexAccessExp:
-		return e.EvaluateIndexAccessExpression(n.(parser.IndexAccessExpNode), env)
-	case parser.NodeBoolean:
-		return values.BoolValue{Value: n.(parser.BooleanNode).Value}
 	case parser.NodeAssignment:
 		return e.EvaluateAssignmentExpression(n.(parser.AssignmentNode), env)
+	case parser.NodeBinaryExp:
+		return e.EvaluateBinaryExpression(n.(parser.BinaryExpNode), env)
+	case parser.NodeUnaryExp:
+		return e.EvaluateUnaryExpression(n.(parser.UnaryExpNode), env)
+	case parser.NodeCallExp:
+		return e.EvaluateCallExpression(n.(parser.CallExpNode), env)
+	case parser.NodeArrayExp: // 10
+		return e.EvaluateArrayExpression(n.(parser.ArrayExpNode), env)
+	case parser.NodeIndexAccessExp: // 11
+		return e.EvaluateIndexAccessExpression(n.(parser.IndexAccessExpNode), env)
+	case parser.NodeDictionaryExp: // 12
+		return e.EvaluateDictionaryExpression(n.(parser.DictionaryExpNode), env)
+	case parser.NodeObjectInitExp: // 13
+		return e.EvaluateObjInitializeExpression(n.(parser.ObjectInitExpNode), env)
+	case parser.NodeMemberExp: // 14
+		return e.EvaluateMemberExpression(n.(parser.MemberExpNode), env)
 	case parser.NodeSliceExp:
 		return e.EvaluateSliceExpression(n.(parser.SliceExpNode), env)
-	case parser.NodeMemberExp:
-		return e.EvaluateMemberExpression(n.(parser.MemberExpNode), env)
-	case parser.NodeObjectInitExp:
-		return e.EvaluateObjInitializeExpression(n.(parser.ObjectInitExpNode), env)
-	case parser.NodeArrayExp:
-		return e.EvaluateArrayExpression(n.(parser.ArrayExpNode), env)
-	case parser.NodeDictionaryExp:
-		return e.EvaluateDictionaryExpression(n.(parser.DictionaryExpNode), env)
+	case parser.NodeTernaryExp:
+		return e.EvaluateTernaryExpression(n.(parser.TernaryExpNode), env)
+	case parser.NodeAnonFunctionDeclaration:
+		return e.EvaluateAnonymousFunctionExpression(n.(parser.AnonFunctionDeclarationNode), env)
+	case parser.NodeBinaryComparisonExp:
+		return e.EvaluateBinaryComparisonExpression(n.(parser.BinaryComparisonExpNode), env)
+	case parser.NodeBinaryLogicExp:
+		return e.EvaluateBinaryLogicExpression(n.(parser.BinaryLogicExpNode), env)
 	default:
 		// litter.Dump(n)
 		return e.Panic(values.RuntimeError, "Unknown Expression Type", 0, env)
@@ -877,23 +869,18 @@ func (e Evaluator) EvaluateArrayExpression(node parser.ArrayExpNode, env *enviro
 
 func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environment.Environment) values.RuntimeValue {
 
-	//init := timer.Init()
-	evaluatedArgs := make([]values.RuntimeValue, 0, len(node.Args))
+	evaluatedArgs := make([]values.RuntimeValue, len(node.Args))
 
-	for _, arg := range node.Args {
+	for i, arg := range node.Args {
 		value := e.EvaluateExpression(arg, env)
 		if value.GetType() == values.ErrorType {
 			return value
 		}
-		evaluatedArgs = append(evaluatedArgs, value)
+		evaluatedArgs[i] = value
 
 	}
 
-	//timer.add("evaluate_args", init)
-
-	//init = timer.Init()
 	calle := e.EvaluateExpression(node.Name, env)
-	//timer.add("eval_calee", init)
 
 	if calle.GetType() == values.ErrorType {
 		return calle
@@ -902,7 +889,6 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 	switch calle.GetType() {
 
 	case values.NativeFunctionType:
-		//init := timer.Init()
 
 		val := calle.(values.NativeFunctionValue).Value(evaluatedArgs)
 
@@ -910,14 +896,11 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 			return e.Panic(val.(values.ErrorValue).ErrorType, val.GetString(), node.Line, env)
 		}
 
-		//timer.add("native_fn", init)
 		return val
 	case values.FunctionType:
-		//init := timer.Init()
 		fn := calle.(values.FunctionValue)
 
 		fnEnv := environment.NewScopeEnv(fn.Environment.(*environment.Environment), len(node.Args))
-		// Create new environment
 
 		e.CallStack.Add(node.Line, env.ModuleName)
 
@@ -929,7 +912,6 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 			fnEnv.ForceDeclare("this", fn.StructObjRef)
 		}
 		var result values.RuntimeValue
-		// timer.Add("fn_pre_exec", init)
 
 		for _, stmt := range fn.Body {
 			result = e.EvaluateStmt(stmt, fnEnv)
@@ -946,7 +928,7 @@ func (e *Evaluator) EvaluateCallExpression(node parser.CallExpNode, env *environ
 
 		}
 		e.CallStack.Remove()
-		return values.NothingValue{}
+		return result
 
 	default:
 		return e.Panic(values.RuntimeError, "Only functions can be called not "+calle.GetType().String(), node.Line, env)

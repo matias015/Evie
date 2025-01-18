@@ -3,6 +3,7 @@ package lib
 import (
 	environment "evie/env"
 	fsLib "evie/lib/fs"
+	osLib "evie/lib/os"
 )
 
 func GetLibMap() map[string]func(*environment.Environment) {
@@ -10,7 +11,7 @@ func GetLibMap() map[string]func(*environment.Environment) {
 	m := make(map[string]func(*environment.Environment), 1)
 
 	m["fs"] = fsLib.Load
-	// m["os"] = osLib.Load
+	m["os"] = osLib.Load
 	// m["crypt"] = cryptLib.Load
 	// m["http"] = htppLib.Load
 	// m["json"] = jsonLib.Load

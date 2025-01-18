@@ -1,0 +1,11 @@
+import os
+
+var pId = 13552
+
+if os.processExists(pId){
+	os.kill(pId)
+}else{
+	print("El proceso no existe")
+}
+
+

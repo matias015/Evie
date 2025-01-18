@@ -119,11 +119,11 @@ func Tokenize(input string) []Token {
 
 		// If it is a number
 		if isNumber(token) {
-			// t.Eat()
 			word += string(token)
 			for {
 				if t.HasNext() && (isNumber(t.GetNext()) || t.GetNext() == '.') {
-					word += string(t.Eat())
+					t.Eat()
+					word += string(t.Get())
 				} else {
 					t.Eat()
 					break
@@ -152,14 +152,14 @@ func Tokenize(input string) []Token {
 
 				if t.HasNext() && (t.Get() != '"' || isScaped) {
 
-					if isScaped {
-						isScaped = false
-					}
-
-					if string(t.Get()) == "\\" {
+					if string(t.Get()) == "\\" && isScaped == false {
 						isScaped = true
 						t.Eat()
 						continue
+					}
+
+					if isScaped {
+						isScaped = false
 					}
 
 					if string(t.Get()) == "\\" && string(t.GetNext()) == "n" {

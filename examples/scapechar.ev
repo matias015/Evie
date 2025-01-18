@@ -1,0 +1,3 @@
+var text1 = "users\\mypath\\scaped"
+
+print(text1)

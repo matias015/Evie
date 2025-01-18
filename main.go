@@ -22,20 +22,21 @@ func Init() {
 
 	ast := ParseContent(file)
 
-	ChangeWorkingDirectory(file)
+	// GetRootPath(file)
 
 	var env *environment.Environment = SetupInitialEnv(file)
 
 	start := time.Now()
 
 	intr := evruntime.Evaluator{Nodes: ast}
+	intr.RootPath = GetRootPath(file)
 	intr.Evaluate(env)
 
 	fmt.Println("\nEval time: ", time.Since(start).Microseconds()/1000, "ms")
 	// timer.Display()
 }
 
-func ChangeWorkingDirectory(mainFileName string) bool {
+func GetRootPath(mainFileName string) string {
 
 	cd, err := os.Getwd()
 
@@ -45,16 +46,16 @@ func ChangeWorkingDirectory(mainFileName string) bool {
 
 	root := path.Dir(cd + string(filepath.Separator) + common.AddExtension(mainFileName))
 
-	err = os.Chdir(root)
+	// err = os.Chdir(root)
 
-	if err != nil {
-		fmt.Println("Error setting up the root directory")
-		os.Exit(1)
-	}
+	// if err != nil {
+	// 	fmt.Println("Error setting up the root directory")
+	// 	os.Exit(1)
+	// }
 
-	cd, _ = os.Getwd()
+	// cd, _ = os.Getwd()
 
-	return true
+	return root
 }
 
 func ParseContent(file string) []parser.Stmt {
@@ -96,4 +97,5 @@ func main() {
 	// Parse cl arguments
 
 	Init()
+
 }

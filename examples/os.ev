@@ -1,0 +1,24 @@
+import os
+import fs
+
+var wd = os.getWDir()
+print(wd)
+
+// Trying to read a file which is not in the root path
+try {
+	print(fs.read("setup.go"))
+}catch{
+	print("file not found")
+}
+
+// Change the wd where the file is
+os.changeDir(wd + os.PATH_SEPARATOR + "env")
+
+try {
+	print(fs.read("setup.go"))
+}catch{
+	print("file not found")
+}
+
+wd = os.getWDir()
+print(wd)
