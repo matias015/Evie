@@ -169,7 +169,6 @@ IdentifierError
 ZeroDivisionError
 InvalidArgumentError
 InvalidConversionError
-CircularImportError
 PropertyError
 
 ```
