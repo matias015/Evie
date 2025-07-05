@@ -69,7 +69,7 @@ print(dict["a"])
 
 ```
 ## Arrays
-Arrays in Evie are similar to others languages like Python or JavaScript
+Arrays are similar to others languages like Python or JavaScript
 ```
 var arr = [1, 2, "string", [3,4,5]]
 
